@@ -18,6 +18,7 @@ namespace robotPuCap {
     const EVT_VOICE = 0x03;
     const EVT_SOCCER_BALL = 0x04;
     const EVT_SOCCER_GOAL = 0x05;
+    const EVT_ACTION = 0x06;
 
     // Packet flags
     const VALID = 1 << 0;
@@ -33,6 +34,7 @@ namespace robotPuCap {
     const SERVICE_FACE_DETECTION = 3;
     const SERVICE_SOCCER_BALL_DETECTION = 4;
     const SERVICE_SOCCER_GOAL_DETECTION = 5;
+    const SERVICE_VOICE_COMMAND = 6;
 
     // Packet parsing helpers
     function i16(buf: Buffer, offset: number): number {
@@ -81,6 +83,38 @@ namespace robotPuCap {
         Search = 6,
         //% block="approach"
         Approach = 7
+    }
+
+    /**
+     * Voice / action tokens issued by the ESP32-S3.
+     */
+    export enum VoiceAction {
+        //% block="rest"
+        Rest = 1,
+        //% block="go"
+        Go = 2,
+        //% block="back"
+        Back = 3,
+        //% block="stop"
+        Stop = 4,
+        //% block="jump"
+        Jump = 5,
+        //% block="kick"
+        Kick = 6,
+        //% block="sing"
+        Sing = 7,
+        //% block="talk"
+        Talk = 8,
+        //% block="dance"
+        Dance = 9,
+        //% block="left"
+        Left = 10,
+        //% block="right"
+        Right = 11,
+        //% block="straight"
+        Straight = 12,
+        //% block="wakeup"
+        Wakeup = 13
     }
 
     class CogniCapPacket {
@@ -146,6 +180,8 @@ namespace robotPuCap {
                     self.setService(SERVICE_SOCCER_BALL_DETECTION, true);
                     basic.pause(10);
                     self.setService(SERVICE_SOCCER_GOAL_DETECTION, true);
+                    basic.pause(10);
+                    self.setService(SERVICE_VOICE_COMMAND, true);
                     basic.pause(30000);
                 }
             });
@@ -164,7 +200,12 @@ namespace robotPuCap {
             let buf = pins.i2cReadBuffer(ESP32_ADDR, SIZE, false);
             if (buf.length == SIZE) {
                 this.parse(buf);
-                dispatch(this.packet.type);
+                let p = this.packet;
+                if (p.type == EVT_ACTION || p.type == EVT_WAKE) {
+                    if (lastEventSeq[p.type] === p.seq) return;
+                    lastEventSeq[p.type] = p.seq;
+                }
+                dispatch(p.type, p.count);
             }
         }
         parse(buf: Buffer) {
@@ -202,10 +243,16 @@ namespace robotPuCap {
 
     // I2C callback registry
     let handlers: (() => void)[] = [];
-    function dispatch(type: number): void {
+    let actionHandlers: (() => void)[] = [];
+    let lastEventSeq: number[] = [];
+    function dispatch(type: number, token: number = 0): void {
         let handler = handlers[type];
         if (handler) {
             handler();
+        }
+        if (type == EVT_ACTION) {
+            let ah = actionHandlers[token];
+            if (ah) ah();
         }
     }
 
@@ -455,14 +502,61 @@ namespace robotPuCap {
         return ensureCap().detected(object) ? cap.packet.pitch : 0;
     }
 
+    // Voice / action token name table
+    const VOICE_NAMES = [
+        "", "rest", "go", "back", "stop", "jump", "kick", "sing", "talk", "dance", "left", "right", "straight", "wakeup"
+    ];
+
     /**
-     * Get the latest voice command string.
+     * Get the latest action-token name as a string (e.g. "go", "straight").
      */
     //% block="voice command"
     //% group="Voice"
     export function getVoiceCommand(): string {
-        // Voice decoding is not implemented in the first skeleton.
-        return "";
+        let t = lastActionToken();
+        return t >= 0 && t < VOICE_NAMES.length ? VOICE_NAMES[t] : "";
+    }
+
+    /**
+     * Latest action token value from the last I2C action message (0-255).
+     */
+    //% block="last action token"
+    //% group="Voice"
+    export function lastActionToken(): number {
+        return cap && cap.packet.type == EVT_ACTION && cap.packet.fresh ? cap.packet.count : 0;
+    }
+
+    /**
+     * Run code when a wake word is detected.
+     * @param handler the code to run
+     */
+    //% block="on wake word"
+    //% group="Voice"
+    //% handlerStatement=1
+    export function onWakeWord(handler: () => void): void {
+        handlers[EVT_WAKE] = handler;
+    }
+
+    /**
+     * Run code when a voice action token is received.
+     * @param action the action token to watch for
+     * @param handler the code to run
+     */
+    //% block="on voice action %action"
+    //% group="Voice"
+    //% handlerStatement=1
+    export function onVoiceAction(action: VoiceAction, handler: () => void): void {
+        actionHandlers[action] = handler;
+    }
+
+    /**
+     * Enable or disable the MultiNet/mock voice command service on the ESP32-S3.
+     * @param enabled true to enable, false to disable
+     */
+    //% block="enable voice commands %enabled"
+    //% group="Setup"
+    export function enableVoiceCommands(enabled: boolean): void {
+        ensureCap().setService(SERVICE_VOICE_COMMAND, enabled);
     }
 
     /**
