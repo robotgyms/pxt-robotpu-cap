@@ -4,7 +4,7 @@
  */
 //% weight=49 color=#9e2896 icon="\uf06e"
 //% block="CogniCap"
-//% groups='["Setup", "Vision", "Voice", "Learning", "Tracking", "Soccer"]'
+//% groups='["Setup", "Vision", "Voice", "Learning", "Tracking", "Soccer", "I2C Callbacks"]'
 //% helpUrl="https://robotgyms.com/pu/cognicap"
 namespace robotPuCap {
     // I2C addresses
@@ -164,6 +164,7 @@ namespace robotPuCap {
             let buf = pins.i2cReadBuffer(ESP32_ADDR, SIZE, false);
             if (buf.length == SIZE) {
                 this.parse(buf);
+                dispatch(this.packet.type);
             }
         }
         parse(buf: Buffer) {
@@ -198,6 +199,118 @@ namespace robotPuCap {
         }
         return cap;
     }
+
+    // I2C callback registry
+    let handlers: (() => void)[] = [];
+    function dispatch(type: number): void {
+        let handler = handlers[type];
+        if (handler) {
+            handler();
+        }
+    }
+
+    /**
+     * Run code when a selected object is detected.
+     * @param object the object to watch for
+     * @param handler the code to run
+     */
+    //% block="on %object detected"
+    //% group="I2C Callbacks"
+    //% handlerStatement=1
+    export function onObjectDetected(object: CapObject, handler: () => void): void {
+        handlers[object] = handler;
+    }
+
+    /**
+     * Run code when an I2C message of the given type arrives.
+     * @param type the message type byte (0-255)
+     * @param handler the code to run
+     */
+    //% block="on i2c message type %type"
+    //% type.min=0 type.max=255
+    //% group="I2C Callbacks"
+    //% handlerStatement=1
+    export function onI2CMessage(type: number, handler: () => void): void {
+        if (type < 0 || type > 255) return;
+        handlers[type] = handler;
+    }
+
+    /**
+     * X position from the latest I2C packet (mm).
+     */
+    //% block="last object x (mm)"
+    //% group="I2C Callbacks"
+    export function lastObjectX(): number { return cap ? cap.packet.x_mm : 0; }
+
+    /**
+     * Y position from the latest I2C packet (mm).
+     */
+    //% block="last object y (mm)"
+    //% group="I2C Callbacks"
+    export function lastObjectY(): number { return cap ? cap.packet.y_mm : 0; }
+
+    /**
+     * Z position from the latest I2C packet (mm).
+     */
+    //% block="last object z (mm)"
+    //% group="I2C Callbacks"
+    export function lastObjectZ(): number { return cap ? cap.packet.z_mm : 0; }
+
+    /**
+     * Width from the latest I2C packet (pixels).
+     */
+    //% block="last object width"
+    //% group="I2C Callbacks"
+    export function lastObjectWidth(): number { return cap ? cap.packet.w : 0; }
+
+    /**
+     * Height from the latest I2C packet (pixels).
+     */
+    //% block="last object height"
+    //% group="I2C Callbacks"
+    export function lastObjectHeight(): number { return cap ? cap.packet.h : 0; }
+
+    /**
+     * Yaw angle from the latest I2C packet (degrees).
+     */
+    //% block="last object yaw"
+    //% group="I2C Callbacks"
+    export function lastObjectYaw(): number { return cap ? cap.packet.yaw : 0; }
+
+    /**
+     * Pitch angle from the latest I2C packet (degrees).
+     */
+    //% block="last object pitch"
+    //% group="I2C Callbacks"
+    export function lastObjectPitch(): number { return cap ? cap.packet.pitch : 0; }
+
+    /**
+     * Message type from the latest I2C packet.
+     */
+    //% block="last message type"
+    //% group="I2C Callbacks"
+    export function lastMessageType(): number { return cap ? cap.packet.type : 0; }
+
+    /**
+     * Object count from the latest I2C packet.
+     */
+    //% block="last object count"
+    //% group="I2C Callbacks"
+    export function lastObjectCount(): number { return cap ? cap.packet.count : 0; }
+
+    /**
+     * Confidence from the latest I2C packet (0-255).
+     */
+    //% block="last object confidence"
+    //% group="I2C Callbacks"
+    export function lastObjectConfidence(): number { return cap ? cap.packet.score : 0; }
+
+    /**
+     * True if the latest I2C packet is fresh and valid.
+     */
+    //% block="last object valid"
+    //% group="I2C Callbacks"
+    export function lastObjectValid(): boolean { return cap ? cap.packet.fresh : false; }
 
     // Head tracking state
     let currentYaw = 0;
