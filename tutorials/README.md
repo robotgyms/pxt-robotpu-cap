@@ -10,6 +10,7 @@ This folder contains MakeCode / TypeScript tutorials for the **CogniCap** smart-
 - [Robot Soccer](robot-soccer.md) — find the ball, align to the goal, and kick.
 - [Object Tracking](object-tracking.md) — track face, ball, or goal while keeping the body still.
 - [I2C Send and Receive](i2c-send-receive.md) — send commands and parse 18-byte packets from the ESP32-S3 camera.
+- [Personality with Q-Learning](personality-q-table.md) — train a 64-state Q-table during rest to give Robot PU a personality.
 
 ## Requirements
 
