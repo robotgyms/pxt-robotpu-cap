@@ -8,6 +8,7 @@ This folder contains MakeCode / TypeScript tutorials for the **CogniCap** smart-
 - [Face Tracking](face-tracking.md) — keep the head pointed at a face.
 - [Ball Following](ball-following.md) — follow a soccer ball on the floor.
 - [Robot Soccer](robot-soccer.md) — find the ball, align to the goal, and kick.
+- [Object Tracking](object-tracking.md) — track face, ball, or goal while keeping the body still.
 
 ## Requirements
 
