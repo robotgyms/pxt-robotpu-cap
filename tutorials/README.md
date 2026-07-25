@@ -9,6 +9,7 @@ This folder contains MakeCode / TypeScript tutorials for the **CogniCap** smart-
 - [Ball Following](ball-following.md) — follow a soccer ball on the floor.
 - [Robot Soccer](robot-soccer.md) — find the ball, align to the goal, and kick.
 - [Object Tracking](object-tracking.md) — track face, ball, or goal while keeping the body still.
+- [I2C Send and Receive](i2c-send-receive.md) — send commands and parse 18-byte packets from the ESP32-S3 camera.
 
 ## Requirements
 
