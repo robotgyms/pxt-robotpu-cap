@@ -4,7 +4,7 @@
  */
 //% weight=49 color=#9e2896 icon="\uf06e"
 //% block="CogniCap"
-//% groups='["Setup", "Vision", "Voice", "Learning", "Tracking", "Soccer", "I2C Callbacks"]'
+//% groups='["Setup", "Vision", "Voice", "Learning", "Tracking", "Soccer", "Attention", "I2C Callbacks"]'
 //% helpUrl="https://robotgyms.com/pu/cognicap"
 namespace robotPuCap {
     // I2C addresses
@@ -12,13 +12,19 @@ namespace robotPuCap {
     const ESP32_ADDR = 66;  // 0x42
     const SIZE = 18;
 
-    // Event types from ESP32-S3
-    const EVT_FACE = 0x01;
-    const EVT_WAKE = 0x02;
-    const EVT_VOICE = 0x03;
-    const EVT_SOCCER_BALL = 0x04;
-    const EVT_SOCCER_GOAL = 0x05;
-    const EVT_ACTION = 0x06;
+    // Message type segments
+    const EVT_IDLE = 0x00;        // 0x00-0x0F status / action / device
+    const EVT_ACTION = 0x01;
+    const EVT_WIFI = 0x02;
+    const EVT_WEBSITE = 0x03;
+    const EVT_CAMERA = 0x04;
+    const EVT_POWER = 0x04;
+    const EVT_ROBOT = 0x05;
+    const EVT_VOICE = 0x10;       // 0x10-0x1F voice / audio
+    const EVT_WAKE = 0x11;
+    const EVT_FACE = 0x20;        // 0x20-0xFF vision / detection
+    const EVT_SOCCER_BALL = 0x21;
+    const EVT_SOCCER_GOAL = 0x22;
 
     // Packet flags
     const VALID = 1 << 0;
@@ -27,14 +33,12 @@ namespace robotPuCap {
     const WEB = 1 << 3;
     const SLEEP = 1 << 4;
 
-    // Service commands
+    // Service enable protocol
     const CMD_SERVICE_ENABLE = 8;
-    const SERVICE_WIFI = 1;
-    const SERVICE_IMAGE_CAPTURE = 2;
-    const SERVICE_FACE_DETECTION = 3;
-    const SERVICE_SOCCER_BALL_DETECTION = 4;
-    const SERVICE_SOCCER_GOAL_DETECTION = 5;
-    const SERVICE_VOICE_COMMAND = 6;
+    const SVC_OFF = 0;
+    const SVC_ON = 1;
+    const SVC_ERR = 2;
+    const KNOWN_SERVICES = [EVT_WIFI, EVT_CAMERA, EVT_VOICE, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL];
 
     // Packet parsing helpers
     function i16(buf: Buffer, offset: number): number {
@@ -155,34 +159,34 @@ namespace robotPuCap {
     class CogniCap {
         enabled: boolean;
         packet: CogniCapPacket;
+        serviceStatus: number[];
         constructor() {
             this.enabled = false;
             this.packet = new CogniCapPacket();
+            this.serviceStatus = [];
         }
         init() {
             // Open all 4 channels on the TCA9546A I2C mux
             pins.i2cWriteNumber(MUX_ADDR, 0x0F, NumberFormat.Int8LE, false);
             basic.pause(2000);
         }
-        setService(id: number, on: boolean) {
-            pins.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([CMD_SERVICE_ENABLE, id, on ? 1 : 0]), false);
+        setService(type: number, on: boolean) {
+            this.serviceStatus[type] = on ? SVC_ON : SVC_OFF;
+            pins.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([CMD_SERVICE_ENABLE, type, on ? 1 : 0]), false);
         }
         start() {
             this.enabled = true;
             let self = this;
-            // Keep services enabled (camera reboots clear them)
+            // Keep enabled services running (camera reboots clear them)
             control.inBackground(function () {
                 while (self.enabled) {
-                    self.setService(SERVICE_IMAGE_CAPTURE, true);
-                    basic.pause(10);
-                    self.setService(SERVICE_FACE_DETECTION, true);
-                    basic.pause(10);
-                    self.setService(SERVICE_SOCCER_BALL_DETECTION, true);
-                    basic.pause(10);
-                    self.setService(SERVICE_SOCCER_GOAL_DETECTION, true);
-                    basic.pause(10);
-                    self.setService(SERVICE_VOICE_COMMAND, true);
-                    basic.pause(30000);
+                    for (let i = 0; i < KNOWN_SERVICES.length; i++) {
+                        let svc = KNOWN_SERVICES[i];
+                        if (self.serviceStatus[svc] != SVC_OFF) {
+                            self.setService(svc, true);
+                        }
+                        basic.pause(i == KNOWN_SERVICES.length - 1 ? 30000 : 10);
+                    }
                 }
             });
             // Poll I2C packets
@@ -190,6 +194,15 @@ namespace robotPuCap {
                 while (self.enabled) {
                     self.read();
                     basic.pause(20);
+                }
+            });
+            // Sample microphone for attention sound spikes
+            control.inBackground(function () {
+                while (self.enabled) {
+                    if (input.soundLevel() > attSoundThreshold) {
+                        attSoundCount += 1;
+                    }
+                    basic.pause(50);
                 }
             });
         }
@@ -201,7 +214,13 @@ namespace robotPuCap {
             if (buf.length == SIZE) {
                 this.parse(buf);
                 let p = this.packet;
-                if (p.type == EVT_ACTION || p.type == EVT_WAKE) {
+                if (p.seq != attLastPacketSeq[p.type]) {
+                    attLastPacketSeq[p.type] = p.seq;
+                    if (p.type == EVT_FACE) attFaceCount += p.count;
+                    else if (p.type == EVT_VOICE) attVoiceCount += 1;
+                    else if (p.type == EVT_WAKE) attVoiceCount += p.count;
+                }
+                if (p.type < 0x20 && p.type != EVT_IDLE) {
                     if (lastEventSeq[p.type] === p.seq) return;
                     lastEventSeq[p.type] = p.seq;
                 }
@@ -216,13 +235,16 @@ namespace robotPuCap {
             p.flags = buf[3];
             p.count = buf[4];
             p.score = buf[5];
-            p.x_mm = i16(buf, 6);
-            p.y_mm = i16(buf, 8);
-            p.z_mm = i16(buf, 10);
-            p.w = u16(buf, 12);
-            p.h = u16(buf, 14);
-            p.yaw = i8(buf[16]);
-            p.pitch = i8(buf[17]);
+            p.x_mm = p.y_mm = p.z_mm = p.w = p.h = p.yaw = p.pitch = 0;
+            if (p.type >= 0x20) {
+                p.x_mm = i16(buf, 6);
+                p.y_mm = i16(buf, 8);
+                p.z_mm = i16(buf, 10);
+                p.w = u16(buf, 12);
+                p.h = u16(buf, 14);
+                p.yaw = i8(buf[16]);
+                p.pitch = i8(buf[17]);
+            }
             p.fresh = (p.flags & VALID) != 0 && (p.flags & STALE) == 0;
             p.rxTime = input.runningTime();
         }
@@ -245,12 +267,14 @@ namespace robotPuCap {
     let handlers: (() => void)[] = [];
     let actionHandlers: (() => void)[] = [];
     let lastEventSeq: number[] = [];
+    function isActionToken(type: number): boolean {
+        return type == EVT_ACTION || type == EVT_VOICE;
+    }
+
     function dispatch(type: number, token: number = 0): void {
         let handler = handlers[type];
-        if (handler) {
-            handler();
-        }
-        if (type == EVT_ACTION) {
+        if (handler) handler();
+        if (isActionToken(type)) {
             let ah = actionHandlers[token];
             if (ah) ah();
         }
@@ -359,6 +383,30 @@ namespace robotPuCap {
     //% group="I2C Callbacks"
     export function lastObjectValid(): boolean { return cap ? cap.packet.fresh : false; }
 
+    /**
+     * Print the latest I2C packet to serial.
+     */
+    //% block="print i2c packet"
+    //% group="I2C Callbacks"
+    export function printI2CPacket(): void {
+        if (!cap) return;
+        let p = cap.packet;
+        if (p.type >= 0x20) {
+            serial.writeLine(
+                "obj type=" + p.type + " ver=" + p.ver + " seq=" + p.seq +
+                " flags=" + p.flags + " count=" + p.count + " score=" + p.score +
+                " x_mm=" + p.x_mm + " y_mm=" + p.y_mm + " z_mm=" + p.z_mm +
+                " w=" + p.w + " h=" + p.h +
+                " yaw=" + p.yaw + " pitch=" + p.pitch
+            );
+        } else {
+            serial.writeLine(
+                "tok type=" + p.type + " ver=" + p.ver + " seq=" + p.seq +
+                " flags=" + p.flags + " token=" + p.count + " score=" + p.score
+            );
+        }
+    }
+
     // Head tracking state
     let currentYaw = 0;
     let currentPitch = 0;
@@ -372,6 +420,16 @@ namespace robotPuCap {
     let maxStates = 64;
     let maxActions = 8;
     let qTable: number[][] = [];
+
+    // Attention-attractor state
+    let attSoundThreshold = 120;
+    let attExplorePercent = 25;
+    let attFaceCount = 0;
+    let attVoiceCount = 0;
+    let attSoundCount = 0;
+    let attLastState = -1;
+    let attLastAction = -1;
+    let attLastPacketSeq: number[] = [];
 
     /**
      * Reset the Q-table to all zeros.
@@ -424,12 +482,7 @@ namespace robotPuCap {
     //% block="enable %object detection %enabled"
     //% group="Setup"
     export function enableDetection(object: CapObject, enabled: boolean): void {
-        let c = ensureCap();
-        let id = SERVICE_IMAGE_CAPTURE;
-        if (object == EVT_FACE) id = SERVICE_FACE_DETECTION;
-        else if (object == EVT_SOCCER_BALL) id = SERVICE_SOCCER_BALL_DETECTION;
-        else if (object == EVT_SOCCER_GOAL) id = SERVICE_SOCCER_GOAL_DETECTION;
-        c.setService(id, enabled);
+        ensureCap().setService(object, enabled);
     }
 
     /**
@@ -442,6 +495,11 @@ namespace robotPuCap {
         return ensureCap().detected(object);
     }
 
+    function objectField(object: CapObject, getter: () => number): number {
+        ensureCap();
+        return cap.detected(object) ? getter() : 0;
+    }
+
     /**
      * X position of the detected object in millimetres (camera frame).
      * @param object the object to read
@@ -449,7 +507,7 @@ namespace robotPuCap {
     //% block="%object x (mm)"
     //% group="Vision"
     export function objectX(object: CapObject): number {
-        return ensureCap().detected(object) ? cap.packet.x_mm : 0;
+        return objectField(object, () => cap.packet.x_mm);
     }
 
     /**
@@ -459,7 +517,7 @@ namespace robotPuCap {
     //% block="%object y (mm)"
     //% group="Vision"
     export function objectY(object: CapObject): number {
-        return ensureCap().detected(object) ? cap.packet.y_mm : 0;
+        return objectField(object, () => cap.packet.y_mm);
     }
 
     /**
@@ -469,7 +527,7 @@ namespace robotPuCap {
     //% block="%object width"
     //% group="Vision"
     export function objectWidth(object: CapObject): number {
-        return ensureCap().detected(object) ? cap.packet.w : 0;
+        return objectField(object, () => cap.packet.w);
     }
 
     /**
@@ -479,7 +537,7 @@ namespace robotPuCap {
     //% block="%object height"
     //% group="Vision"
     export function objectHeight(object: CapObject): number {
-        return ensureCap().detected(object) ? cap.packet.h : 0;
+        return objectField(object, () => cap.packet.h);
     }
 
     /**
@@ -489,7 +547,7 @@ namespace robotPuCap {
     //% block="%object yaw"
     //% group="Vision"
     export function objectYaw(object: CapObject): number {
-        return ensureCap().detected(object) ? cap.packet.yaw : 0;
+        return objectField(object, () => cap.packet.yaw);
     }
 
     /**
@@ -499,7 +557,7 @@ namespace robotPuCap {
     //% block="%object pitch"
     //% group="Vision"
     export function objectPitch(object: CapObject): number {
-        return ensureCap().detected(object) ? cap.packet.pitch : 0;
+        return objectField(object, () => cap.packet.pitch);
     }
 
     // Voice / action token name table
@@ -523,7 +581,7 @@ namespace robotPuCap {
     //% block="last action token"
     //% group="Voice"
     export function lastActionToken(): number {
-        return cap && cap.packet.type == EVT_ACTION && cap.packet.fresh ? cap.packet.count : 0;
+        return cap && isActionToken(cap.packet.type) && cap.packet.fresh ? cap.packet.count : 0;
     }
 
     /**
@@ -556,7 +614,7 @@ namespace robotPuCap {
     //% block="enable voice commands %enabled"
     //% group="Setup"
     export function enableVoiceCommands(enabled: boolean): void {
-        ensureCap().setService(SERVICE_VOICE_COMMAND, enabled);
+        ensureCap().setService(EVT_VOICE, enabled);
     }
 
     /**
@@ -604,98 +662,176 @@ namespace robotPuCap {
         return best;
     }
 
-    let faceYawLock = 0;
-    let facePitchLock = 0;
     /**
-     * Move the head so the detected face stays centred.
+     * Set the sound-level threshold for counting attention spikes.
+     * @param threshold sound level 0..255
      */
-    //% block="track face"
-    //% group="Tracking"
-    export function trackFace(): void {
-        let c = ensureCap();
-        cacheHead();
-        if (c.detected(EVT_FACE)) {
-            let p = c.packet;
-            faceYawLock = (faceYawLock + p.yaw) * 0.5;
-            facePitchLock = (facePitchLock + p.pitch) * 0.5;
-            let nextYaw = clamp(currentYaw + faceYawLock * 0.08, -45, 45);
-            let nextPitch = clamp(currentPitch + facePitchLock * 0.08, -45, 45);
-            robotPuPro.setModeVar(robotPuPro.Mode.API);
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 8);
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, nextPitch, 8);
-            currentYaw = nextYaw;
-            currentPitch = nextPitch;
+    //% block="set attention sound threshold %threshold"
+    //% threshold.min=0 threshold.max=255
+    //% group="Attention"
+    export function setAttentionSoundThreshold(threshold: number): void {
+        attSoundThreshold = threshold;
+    }
+
+    /**
+     * Set the chance (0..100) of picking a random action instead of the best one.
+     * @param percent exploration percentage
+     */
+    //% block="set attention explore %percent"
+    //% percent.min=0 percent.max=100
+    //% group="Attention"
+    export function setAttentionExplore(percent: number): void {
+        attExplorePercent = clamp(percent, 0, 100);
+    }
+
+    /**
+     * Reset attention counters.
+     */
+    //% block="reset attention counters"
+    //% group="Attention"
+    export function resetAttentionCounters(): void {
+        attFaceCount = 0;
+        attVoiceCount = 0;
+        attSoundCount = 0;
+    }
+
+    /**
+     * Return the current attention state (0..7) from face, voice and sound activity.
+     */
+    //% block="attention state"
+    //% group="Attention"
+    export function attentionState(): number {
+        let s = 0;
+        if (attFaceCount > 0) s |= 1;
+        if (attVoiceCount > 0) s |= 2;
+        if (attSoundCount > 0) s |= 4;
+        return s;
+    }
+
+    /**
+     * Return a reward score based on the current attention counters.
+     */
+    //% block="attention reward"
+    //% group="Attention"
+    export function attentionReward(): number {
+        return attFaceCount + attVoiceCount * 2 + attSoundCount;
+    }
+
+    /**
+     * Update the Q-table with the reward for the last action, then pick the best
+     * attention action for the current state and return it.
+     */
+    //% block="attention action"
+    //% group="Attention"
+    export function attentionAction(): number {
+        ensureQTable();
+        let s = attentionState();
+        let reward = attentionReward();
+        if (attLastState >= 0 && attLastAction >= 0) {
+            let old = getQValue(attLastState, attLastAction);
+            setQValue(attLastState, attLastAction, old + reward);
+        }
+        resetAttentionCounters();
+        let a = getBestAction(s);
+        if (Math.randomRange(0, 99) < attExplorePercent) {
+            a = Math.randomRange(0, maxActions - 1);
+        }
+        attLastState = s;
+        attLastAction = a;
+        return a;
+    }
+
+    // Generic object tracking state (indexed by CapObject enum value)
+    let trackYawLocks: number[] = [];
+    let trackPitchLocks: number[] = [];
+
+    function moveHead(yawDelta: number, pitchDelta: number, brightEyes: boolean) {
+        let nextYaw = clamp(currentYaw + yawDelta, -45, 45);
+        let nextPitch = clamp(currentPitch + pitchDelta, -45, 45);
+        robotPuPro.setModeVar(robotPuPro.Mode.API);
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 8);
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, nextPitch, 8);
+        currentYaw = nextYaw;
+        currentPitch = nextPitch;
+        if (brightEyes) {
             robotPuPro.leftEyeBright(0.01);
             robotPuPro.rightEyeBright(0.01);
         }
     }
 
-    // Ball follow state
-    let lastBallTime = 0;
-    let ballYawLock = 0;
-    let ballPitchLock = 0;
-    let ballSpeed = 0;
-    let ballTurn = 0;
+    /**
+     * Move the head so the selected object stays centred.
+     * @param object the object to track
+     * @param pitchSpeedGain pitch correction gain
+     * @param yawSpeedGain yaw correction gain
+     */
+    //% block="head track %object pitch gain %pitchSpeedGain yaw gain %yawSpeedGain"
+    //% pitchSpeedGain.defl=0.2 yawSpeedGain.defl=0.2
+    //% group="Tracking"
+    export function headTrackObject(object: CapObject,
+                                    pitchSpeedGain:number = 0.2, yawSpeedGain:number = 0.2): void {
+        let c = ensureCap();
+        cacheHead();
+        if (c.detected(object)) {
+            let y = trackYawLocks[object] || 0;
+            let p = trackPitchLocks[object] || 0;
+            y = (y + c.packet.yaw) * 0.5;
+            p = (p + c.packet.pitch) * 0.5;
+            trackYawLocks[object] = y;
+            trackPitchLocks[object] = p;
+            moveHead(y * yawSpeedGain, p * pitchSpeedGain, true);
+        }
+    }
+
+    // Generic object follow state
+    let followLastTime = 0;
+    let followSpeed = 0;
+    let followTurn = 0;
     const LOST_TIMEOUT_MS = 6000;
 
     /**
-     * Track the soccer ball with the head and compute walk speed/turn.
-     * Use ballFollowSpeed() and ballFollowTurn() afterwards to drive the robot.
+     * Track an object with the head and compute walk speed/turn for the target distance.
+     * @param object the object to follow
+     * @param distance target distance to the object in millimetres
+     * @param speedGain multiplier for forward speed based on distance error
+     * @param turnGain multiplier for turning based on yaw error
      */
-    //% block="follow ball"
+    //% block="follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain"
     //% group="Soccer"
-    export function followBall(): void {
+    //% distance.defl=150
+    export function followObject(object: CapObject, distance: number, speedGain: number, turnGain: number): void {
         let c = ensureCap();
         cacheHead();
         let now = input.runningTime();
-        if (c.detected(EVT_SOCCER_BALL)) {
-            lastBallTime = now;
-            let p = c.packet;
-            ballYawLock = (ballYawLock + p.yaw) * 0.5;
-            ballPitchLock = (ballPitchLock + p.pitch) * 0.5;
-            let nextYaw = clamp(currentYaw + ballYawLock * 0.08, -45, 45);
-            let nextPitch = clamp(currentPitch + ballPitchLock * 0.08, -45, 45);
-            robotPuPro.setModeVar(robotPuPro.Mode.API);
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 8);
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, nextPitch, 8);
-            currentYaw = nextYaw;
-            currentPitch = nextPitch;
-            robotPuPro.leftEyeBright(0.01);
-            robotPuPro.rightEyeBright(0.01);
-            // Stop about 150 mm from the ball; tune the gain for your field.
-            ballSpeed = Math.max(-6, Math.min(6, (p.y_mm - 150) * 0.2));
-            ballTurn = (ballTurn + Math.max(-1, Math.min(1, ballYawLock * -0.2))) * 0.5;
-        } else if (now - lastBallTime < LOST_TIMEOUT_MS) {
-            // Follow through briefly when the ball is temporarily out of view.
-            ballSpeed *= 0.7;
-            ballTurn *= 0.9;
-            ballYawLock *= 0.7;
-            ballPitchLock *= 0.7;
+        if (c.detected(object)) {
+            followLastTime = now;
+            let y = trackYawLocks[object] || 0;
+            let p = trackPitchLocks[object] || 0;
+            y = (y + c.packet.yaw) * 0.5;
+            p = (p + c.packet.pitch) * 0.5;
+            trackYawLocks[object] = y;
+            trackPitchLocks[object] = p;
+            moveHead(y * 0.08, p * 0.08, true);
+            followSpeed = Math.max(-6, Math.min(6, (c.packet.y_mm - distance) * speedGain));
+            followTurn = (followTurn + Math.max(-1, Math.min(1, y * turnGain))) * 0.5;
+        } else if (now - followLastTime < LOST_TIMEOUT_MS) {
+            // Follow through briefly when the object is temporarily out of view.
+            followSpeed *= 0.7;
+            followTurn *= 0.9;
+            let y = trackYawLocks[object] || 0;
+            let p = trackPitchLocks[object] || 0;
+            y *= 0.7;
+            p *= 0.7;
+            trackYawLocks[object] = y;
+            trackPitchLocks[object] = p;
         } else {
-            ballSpeed = 0;
-            ballTurn = 0;
+            followSpeed = 0;
+            followTurn = 0;
         }
+        robotPuPro.walk(followSpeed, followTurn);
     }
 
-    /**
-     * Current walk speed from the last followBall() update.
-     */
-    //% block="ball follow speed"
-    //% group="Soccer"
-    export function ballFollowSpeed(): number {
-        return ballSpeed;
-    }
-
-    /**
-     * Current walk turn from the last followBall() update.
-     */
-    //% block="ball follow turn"
-    //% group="Soccer"
-    export function ballFollowTurn(): number {
-        return ballTurn;
-    }
-
-    // Head search pattern for lost ball
+    // Head search pattern for lost object
     const SEARCH_Y: number[] = [15, -15, -15, 0, 15, 15, 0, -15, -15, 0];
     const SEARCH_P: number[] = [0, 0, -10, -10, -10, 3, 3, 3, 0, 0];
     const SCAN_WAIT_FRAMES = 25;
@@ -704,11 +840,12 @@ namespace robotPuCap {
     let searchGain = 1;
 
     /**
-     * Scan the head through the search pattern to reacquire the ball.
+     * Scan the head through the search pattern to reacquire an object.
+     * @param object the object to search for
      */
-    //% block="search for ball"
+    //% block="search for %object"
     //% group="Soccer"
-    export function searchForBall(): void {
+    export function searchForObject(object: CapObject): void {
         cacheHead();
         if (scanCounter > 0) {
             scanCounter -= 1;
@@ -730,4 +867,5 @@ namespace robotPuCap {
             searchGain = Math.min(4, searchGain * 1.1);
         }
     }
+
 }

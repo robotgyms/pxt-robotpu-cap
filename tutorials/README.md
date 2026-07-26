@@ -2,16 +2,22 @@
 
 This folder contains MakeCode / TypeScript tutorials for the **CogniCap** smart-hat add-on for Robot PU.
 
+The tutorials are arranged from low-level I2C commands up to high-level behaviours. Start at the top and work down.
+
 ## Tutorials
 
-- [CogniCap Setup](cognicap-setup.md) — start the camera and verify detections.
-- [Face Tracking](face-tracking.md) — keep the head pointed at a face.
-- [Ball Following](ball-following.md) — follow a soccer ball on the floor.
-- [Robot Soccer](robot-soccer.md) — find the ball, align to the goal, and kick.
-- [Object Tracking](object-tracking.md) — track face, ball, or goal while keeping the body still.
-- [I2C Send and Receive](i2c-send-receive.md) — send commands and parse 18-byte packets from the ESP32-S3 camera.
-- [Voice Control](voice-control.md) — wake the robot and drive it with WakeNet/MultiNet voice commands.
-- [Personality with Q-Learning](personality-q-table.md) — train a 64-state Q-table during rest to give Robot PU a personality.
+| # | Tutorial | Difficulty | What you will learn |
+|---|----------|------------|---------------------|
+| 1 | [CogniCap Setup](cognicap-setup.md) | ★ | Power on, connect to Wi-Fi, and verify the camera and packets. |
+| 2 | [I2C Packet Format](i2C-packets.md) | ★ | The 18-byte packet layout and type segments. |
+| 3 | [I2C Send and Receive](i2c-send-receive.md) | ★★ | Send commands and parse 18-byte packets from the ESP32-S3. |
+| 4 | [I2C Event Handling](i2c-event-handlling.md) | ★★ | React to packets with `onObjectDetected`, `onI2CMessage`, `onVoiceAction`. |
+| 5 | [Object Tracking](object-tracking.md) | ★★★ | Track face, ball, or goal while keeping the body still. |
+| 6 | [Face Interaction](face-interaction.md) | ★★★ | Keep the head pointed at a face and add fun reactions. |
+| 7 | [Ball Following](ball-following.md) | ★★★★ | Follow a soccer ball on the floor. |
+| 8 | [Soccer Game](soccer-game.md) | ★★★★ | Find the ball, align to the goal, and kick. |
+| 9 | [Voice Control](voice-control.md) | ★★★ | Wake the robot and drive it with WakeNet/MultiNet voice commands. |
+| 10 | [Personality with Q-Learning](personality-qtable.md) | ★★★★★ | Train a 64-state Q-table during rest to give Robot PU a personality. |
 
 ## Requirements
 

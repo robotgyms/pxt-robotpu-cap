@@ -4,19 +4,19 @@
 
 `pxt-robotpu-cap` is a MakeCode extension for the BBC micro:bit V2 that adds the **CogniCap** smart hat to [Robot PU](https://robotgyms.com/pu).
 
-CogniCap uses an **ESP32-S3** co-processor to add:
+CogniCap is an **ESP32-S3** smart-hat accessory (ESP32-S3-WROOM + **OV5640** camera + microphone) running the RobotEU firmware. It adds:
 
 - **AI vision** (face, soccer ball, soccer goal detection)
-- **Voice command** recognition
-- **Q-table reinforcement learning**
+- **Voice commands** through WakeNet wake-word and MultiNet command recognition
+- **Reinforcement learning** Q-table code built into CogniCap; together with the micro:bit RL code, Robot PU develops its own personality after you interact with it for a while
 - **High-level tracking and soccer helpers** (face tracking, ball follow, search)
 
-This extension sits on top of `pxt-robotpu-pro` and only runs on micro:bit V2.
+The micro:bit polls CogniCap over I2C for object locations and voice action tokens, then uses `pxt-robotpu-pro` blocks to move the robot. The extension only runs on micro:bit V2.
 
 ## Hardware
 
 - Robot PU (micro:bit V2 compatible)
-- CogniCap smart hat (ESP32-S3, camera, microphone, I2C mux)
+- CogniCap smart hat (ESP32-S3-WROOM, OV5640 camera, microphone, I2C hub)
 
 ## Blocks
 
@@ -45,6 +45,15 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 - `set Q reward state <state> action <action> reward <reward>` — store a reward.
 - `Q value state <state> action <action>` — read a stored value.
 - `best Q action for state <state>` — pick the action with the highest Q value.
+
+### Attention
+
+- `attention state` — current 3-bit state built from face, voice and sound spikes.
+- `attention reward` — reward score from the recent face/voice/sound counters.
+- `attention action` — update the Q-table with the last reward and return the best action for the current state.
+- `set attention sound threshold <threshold>` — sound level over which a microphone sample counts as a spike.
+- `set attention explore <percent>` — chance (0..100) of picking a random action for exploration.
+- `reset attention counters` — clear the face/voice/sound counters.
 
 ### Tracking
 
@@ -105,6 +114,41 @@ basic.forever(function () {
         robotPuPro.walk(0, 1);
     }
     basic.pause(20);
+});
+```
+
+## Example: Attention attractor
+
+The robot watches for faces, voice commands and sound spikes. Each time `attention action` is called it rewards the previous action for the attention it received, then chooses the best action for the current 3-bit state. Over time it learns which `QAction` attracts the most attention.
+
+```typescript
+robotPuCap.startCogniCap();
+robotPuCap.resetQTable();
+
+function doAttractAction(action: number) {
+    if (action == robotPuCap.QAction.Dance) {
+        robotPuPro.setModeVar(robotPuPro.Mode.Dance);
+    } else if (action == robotPuCap.QAction.Walk) {
+        robotPuPro.walk(2, 0);
+    } else if (action == robotPuCap.QAction.TurnLeft) {
+        robotPuPro.walk(0, 1);
+    } else if (action == robotPuCap.QAction.TurnRight) {
+        robotPuPro.walk(0, -1);
+    } else if (action == robotPuCap.QAction.Kick) {
+        robotPuPro.kick();
+    } else if (action == robotPuCap.QAction.Search) {
+        robotPuCap.searchForBall();
+    } else if (action == robotPuCap.QAction.Approach) {
+        robotPuPro.walk(2, 0);
+    } else {
+        robotPuPro.setModeVar(robotPuPro.Mode.Rest);
+    }
+}
+
+basic.forever(function () {
+    let action = robotPuCap.attentionAction();
+    doAttractAction(action);
+    basic.pause(500);
 });
 ```
 

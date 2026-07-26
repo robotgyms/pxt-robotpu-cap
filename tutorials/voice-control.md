@@ -13,7 +13,7 @@ Control the robot with your voice. Wake the robot with the wake word, then say c
 
 ## How it works
 
-The CogniCap hat listens for a wake word using **WakeNet** and recognizes command words using **MultiNet**. When it hears a command, it sends an I2C packet with message type `0x06` and an **action token** in payload byte `4`. The micro:bit can use the `on voice action` block to react to each token.
+The CogniCap hat listens for a wake word using **WakeNet** and recognizes command words using **MultiNet**. When it hears a command, it sends an I2C packet with message type `0x10` and an **action token** in `count` (payload byte `4`). The micro:bit can use the `on voice action` block to react to each token.
 
 ## Blocks used
 

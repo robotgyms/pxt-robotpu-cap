@@ -32,16 +32,27 @@ The ESP32-S3 acts as an I2C slave and the micro:bit is the master.
 | `3` | 1 | Flags |
 | `4-17` | 14 | Payload |
 
-### Message types
+### Message type segments
+
+The parser uses the high nibble of the type byte to pick one of three layouts:
+
+| Range | Segment | Payload use |
+| ---: | --- | --- |
+| `0x00-0x0F` | Status / action | `count` is a token or status code, bytes 6-17 reserved |
+| `0x10-0x1F` | Voice / audio | `count` is command ID or wake count, bytes 6-17 reserved |
+| `0x20-0xFF` | Vision / detection | full 14-byte payload with `x_mm`, `y_mm`, `z_mm`, `w`, `h`, `yaw`, `pitch` |
+
+### Current type values
 
 | Value | Meaning |
 | ---: | --- |
-| `0x00` | Idle / alive beacon |
-| `0x01` | Face detection |
-| `0x02` | Wake detected |
-| `0x03` | Voice command placeholder |
-| `0x04` | Soccer ball detection |
-| `0x05` | Soccer goal detection |
+| `0x00` | Idle / status |
+| `0x01` | Action / command token (token in `count`) |
+| `0x10` | Voice command (action token in `count`) |
+| `0x11` | Wake detected |
+| `0x20` | Face detection |
+| `0x21` | Soccer ball detection |
+| `0x22` | Soccer goal detection |
 
 ### Status flags
 
@@ -65,91 +76,48 @@ The micro:bit can write small command buffers to the ESP32-S3:
 
 ## MakeCode / TypeScript example
 
+`main.ts` already implements the I2C parsing and service management, so use the exposed `robotPuCap` blocks instead of re-implementing `pins.i2cReadBuffer`.
+
 ```typescript
-// Change this to match your ESP32-S3 firmware build.
-const ESP32_ADDR = 0x11;
-const PACKET_SIZE = 18;
+robotPuCap.startCogniCap();
 
-const CAPTURE_CMD = 0x01;
-const DETECT_EVERY_CMD = 0x02;
-
-function readPacket(): Buffer {
-    return pins.i2cReadBuffer(ESP32_ADDR, PACKET_SIZE, false);
-}
-
-function sendCapture(on: boolean) {
-    pins.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([CAPTURE_CMD, on ? 1 : 0]), false);
-}
-
-function sendDetectEvery(frames: number) {
-    frames = Math.max(1, Math.min(255, frames));
-    pins.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([DETECT_EVERY_CMD, frames]), false);
-}
-
-function i16(buf: Buffer, offset: number): number {
-    let v = buf[offset] | (buf[offset + 1] << 8);
-    return v >= 32768 ? v - 65536 : v;
-}
-
-function u16(buf: Buffer, offset: number): number {
-    return buf[offset] | (buf[offset + 1] << 8);
-}
-
-function i8(v: number): number {
-    return v >= 128 ? v - 256 : v;
-}
-
-function parsePacket(buf: Buffer) {
-    if (buf.length != PACKET_SIZE) return;
-
-    let type = buf[0];
-    let ver = buf[1];
-    let seq = buf[2];
-    let flags = buf[3];
-    let count = buf[4];
-    let confidence = buf[5];
-    let x_mm = i16(buf, 6);
-    let y_mm = i16(buf, 8);
-    let z_mm = i16(buf, 10);
-    let w = u16(buf, 12);
-    let h = u16(buf, 14);
-    let yaw = i8(buf[16]);
-    let pitch = i8(buf[17]);
-
-    let valid = (flags & 0x01) != 0;
-    let stale = (flags & 0x02) != 0;
-
+// React to a detected face and read the parsed fields.
+robotPuCap.onObjectDetected(robotPuCap.CapObject.Face, function () {
     serial.writeLine(
-        "type=" + type + " ver=" + ver + " seq=" + seq +
-        " valid=" + valid + " stale=" + stale +
-        " count=" + count + " conf=" + confidence +
-        " x=" + x_mm + " y=" + y_mm + " z=" + z_mm +
-        " w=" + w + " h=" + h +
-        " yaw=" + yaw + " pitch=" + pitch
+        "face x=" + robotPuCap.lastObjectX() +
+        " y=" + robotPuCap.lastObjectY() +
+        " count=" + robotPuCap.lastObjectCount()
     );
-}
+});
 
-// Turn on image capture and run face detection on every frame.
-sendCapture(true);
-sendDetectEvery(1);
+// React to a specific voice command.
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Go, function () {
+    serial.writeLine("voice: go");
+});
 
+// Inspect the latest action token.
 basic.forever(function () {
-    let packet = readPacket();
-    if (packet.length == PACKET_SIZE) {
-        parsePacket(packet);
-    } else {
-        serial.writeLine("i2c read error");
+    let token = robotPuCap.lastActionToken();
+    if (token > 0) {
+        serial.writeLine("last action token=" + token);
     }
-    basic.pause(20);
+    basic.pause(500);
+});
+
+// React to any I2C message type directly.
+robotPuCap.onI2CMessage(0x20, function () {
+    serial.writeLine("got raw message type 0x20 (face)");
 });
 ```
 
+`start CogniCap` opens the TCA9546A mux and begins polling the ESP32-S3. To toggle a service at runtime, use `enable <face/ball/goal> detection` or `enable voice commands`.
+
 ## What to check
 
-- `packet.length == 18` before parsing.
-- The **valid** flag is set before trusting `x_mm`, `y_mm`, etc.
-- The **stale** flag is clear before tracking; if stale, the data is from an old frame.
-- `count > 0` means at least one object of that type was detected.
+- Use `last object valid` or `last object count` before trusting object-position accessors.
+- Object fields (`last object x`, `last object y`, `last object yaw`, etc.) are meaningful only for vision packets (`0x20`, `0x21`, `0x22` and any future `0x20+` type).
+- For action/voice packets (`0x01`, `0x10`), `last action token` returns the token stored in `count`.
+- The extension deduplicates repeated `seq` numbers for voice and wake packets, so callbacks fire once per command.
 
 ## Tips
 

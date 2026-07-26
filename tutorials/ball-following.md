@@ -6,19 +6,19 @@ Make Robot PU follow a soccer ball on the floor.
 
 ## How it works
 
-`follow ball` does two things:
+`follow object` does three things:
 
-1. It keeps the head pointed at the ball.
-2. It computes `ball follow speed` and `ball follow turn` so you can drive the robot with `robotPuPro.walk(...)`.
+1. It keeps the head pointed at the chosen object.
+2. It computes walk speed and turn to keep the object centred.
+3. It sends the walk command to `robotPuPro.walk(...)`.
 
-The robot stops roughly 150 mm from the ball. You can change this target distance by editing the code in `main.ts` if you need different behaviour.
+The robot stops roughly `distance` millimetres from the object. A larger `distance` stops farther away, a smaller `distance` lets it get closer.
 
 ## Blocks used
 
 - `start CogniCap`
-- `follow ball`
-- `ball follow speed`
-- `ball follow turn`
+- `follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain`
+- `search for %object`
 
 ## Example
 
@@ -26,14 +26,18 @@ The robot stops roughly 150 mm from the ball. You can change this target distanc
 robotPuCap.startCogniCap();
 
 basic.forever(function () {
-    robotPuCap.followBall();
-    robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
+    if (robotPuCap.objectDetected(robotPuCap.CapObject.Ball)) {
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
+    } else {
+        robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
+    }
     basic.pause(5);
 });
 ```
 
 ## Tuning
 
-- The robot stops when the ball is closer than 150 mm. Increase that number to stop farther away, decrease it to get closer.
-- If the robot overshoots when turning, reduce the `0.2` turn gain in `main.ts`.
-- If the ball is lost, use `search for ball` to scan the head.
+- `distance` (150 in the example) is the target stop distance in mm.
+- `speedGain` (0.4) controls how fast the robot moves toward the ball. Reduce it if it overshoots.
+- `turnGain` (-0.2) controls how sharply it turns to keep the ball centred. Make it less negative if the robot wobbles.
+- If the ball is lost, `search for %object` scans the head through the search pattern.

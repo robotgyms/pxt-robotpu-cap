@@ -8,14 +8,13 @@ if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
 
 // 2. Face tracking loop
 basic.forever(function () {
-    robotPuCap.trackFace();
+    robotPuCap.headTrackObject(robotPuCap.CapObject.Face, 0.2, 0.2);
     basic.pause(20);
 });
 
 // 3. Ball following
 basic.forever(function () {
-    robotPuCap.followBall();
-    robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
+    robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
     basic.pause(5);
 });
 
@@ -24,7 +23,7 @@ basic.forever(function () {
     let ballSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Ball);
     let goalSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Goal);
     if (ballSeen && goalSeen) {
-        robotPuCap.followBall();
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
         // Once close to the ball, turn toward the goal and kick.
         if (robotPuCap.objectY(robotPuCap.CapObject.Ball) < 200) {
             let goalYaw = Math.atan2(
@@ -35,14 +34,11 @@ basic.forever(function () {
             if (Math.abs(goalYaw) < 15) {
                 robotPuPro.kick();
             }
-        } else {
-            robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
         }
     } else if (ballSeen) {
-        robotPuCap.followBall();
-        robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
     } else {
-        robotPuCap.searchForBall();
+        robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
         robotPuPro.walk(0, 1);
     }
     basic.pause(20);
