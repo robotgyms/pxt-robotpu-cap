@@ -36,11 +36,13 @@ let currentYaw = 0
 let targets: number[] = []
 let smoothPitch = 0
 let smoothYaw = 0
-robotPuCap.startCogniCap()
 let pitch = 0
 let yaw = 0
-let trackSpeed= 0.16 // tweak it for tracking speed
-let trackGain = 0.79   // tweak it for accelration speed
+robotPuCap.startCogniCap()
+// tweak it for tracking speed, high value will cause oscillation
+let trackSpeed = 0.16
+// tweak it for acceleration speed, high value will cause oscillation
+let trackGain = 0.3
 
 basic.forever(function () {
     // Track the chosen object if it is visible
@@ -60,10 +62,8 @@ basic.forever(function () {
         currentPitch = targets[5]
         // Move head toward the object
         robotPuPro.setModeVar(robotPuPro.Mode.API)
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain,
-            Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain,
-            Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     }
     basic.pause(10)
 })
@@ -103,6 +103,6 @@ if (robotPuCap.objectDetected(robotPuCap.CapObject.YourNewObject)) {
 ## Tuning
 
 - `0.5` smoothing weight: closer to `1.0` follows faster but may jitter; closer to `0.0` is smoother but slower.
-- `trackGain` (`0.79`): scales how far the head turns toward the object. Increase for faster tracking; decrease to reduce overshoot.
-- `trackSpeed` (`0.16`): scales the servo step duration, so larger angles move faster. Increase for snappier motion; decrease for smoother motion.
+- `trackGain` (`0.2`): scales how far the head turns toward the object. Increase for faster tracking; too high will cause overshoot or oscillation.
+- `trackSpeed` (`0.16`): scales the servo step duration, so larger angles move faster. Increase for snappier motion; too high will cause oscillation.
 - The `Math.max(0.5, ...)` guard ensures the servo step duration never drops below 0.5 ms, avoiding jerky jumps.
