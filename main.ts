@@ -4,7 +4,7 @@
  */
 //% weight=49 color=#9e2896 icon="\uf06e"
 //% block="CogniCap"
-//% groups='["Setup", "Vision", "Voice", "Learning", "Tracking", "Soccer", "Attention", "I2C Callbacks"]'
+//% groups='["Setup", "Vision", "Voice", "Action", "AI", "I2C Callbacks"]'
 //% helpUrl="https://robotgyms.com/pu/cognicap"
 namespace robotPuCap {
     // I2C addresses
@@ -435,7 +435,7 @@ namespace robotPuCap {
      * Reset the Q-table to all zeros.
      */
     //% block="reset Q-table"
-    //% group="Learning"
+    //% group="AI"
     export function resetQTable(): void {
         qTable = [];
         for (let s = 0; s < maxStates; s++) {
@@ -483,6 +483,20 @@ namespace robotPuCap {
     //% group="Setup"
     export function enableDetection(object: CapObject, enabled: boolean): void {
         ensureCap().setService(object, enabled);
+    }
+
+    /**
+     * Enable only the selected detection services and turn off all other object detections
+     * to save ESP32-S3 processing power.
+     * @param objects the CapObject detections to keep enabled
+     */
+    export function enableDetections(objects: CapObject[]): void {
+        let all = [CapObject.Face, CapObject.Ball, CapObject.Goal];
+        let c = ensureCap();
+        for (let i = 0; i < all.length; i++) {
+            let o = all[i];
+            c.setService(o, objects.indexOf(o) >= 0);
+        }
     }
 
     /**
@@ -624,7 +638,7 @@ namespace robotPuCap {
      * @param reward the reward value
      */
     //% block="set Q reward state %state action %action reward %reward"
-    //% group="Learning"
+    //% group="AI"
     export function setQValue(state: number, action: number, reward: number): void {
         if (state < 0 || state >= maxStates || action < 0 || action >= maxActions) return;
         ensureQTable();
@@ -637,7 +651,7 @@ namespace robotPuCap {
      * @param action the action index
      */
     //% block="Q value state %state action %action"
-    //% group="Learning"
+    //% group="AI"
     export function getQValue(state: number, action: number): number {
         if (state < 0 || state >= maxStates || action < 0 || action >= maxActions) return 0;
         ensureQTable();
@@ -649,7 +663,7 @@ namespace robotPuCap {
      * @param state the state index
      */
     //% block="best Q action for state %state"
-    //% group="Learning"
+    //% group="AI"
     export function getBestAction(state: number): number {
         if (state < 0 || state >= maxStates) return 0;
         ensureQTable();
@@ -668,7 +682,7 @@ namespace robotPuCap {
      */
     //% block="set attention sound threshold %threshold"
     //% threshold.min=0 threshold.max=255
-    //% group="Attention"
+    //% group="AI"
     export function setAttentionSoundThreshold(threshold: number): void {
         attSoundThreshold = threshold;
     }
@@ -679,7 +693,7 @@ namespace robotPuCap {
      */
     //% block="set attention explore %percent"
     //% percent.min=0 percent.max=100
-    //% group="Attention"
+    //% group="AI"
     export function setAttentionExplore(percent: number): void {
         attExplorePercent = clamp(percent, 0, 100);
     }
@@ -688,7 +702,7 @@ namespace robotPuCap {
      * Reset attention counters.
      */
     //% block="reset attention counters"
-    //% group="Attention"
+    //% group="AI"
     export function resetAttentionCounters(): void {
         attFaceCount = 0;
         attVoiceCount = 0;
@@ -699,7 +713,7 @@ namespace robotPuCap {
      * Return the current attention state (0..7) from face, voice and sound activity.
      */
     //% block="attention state"
-    //% group="Attention"
+    //% group="AI"
     export function attentionState(): number {
         let s = 0;
         if (attFaceCount > 0) s |= 1;
@@ -712,7 +726,7 @@ namespace robotPuCap {
      * Return a reward score based on the current attention counters.
      */
     //% block="attention reward"
-    //% group="Attention"
+    //% group="AI"
     export function attentionReward(): number {
         return attFaceCount + attVoiceCount * 2 + attSoundCount;
     }
@@ -722,7 +736,7 @@ namespace robotPuCap {
      * attention action for the current state and return it.
      */
     //% block="attention action"
-    //% group="Attention"
+    //% group="AI"
     export function attentionAction(): number {
         ensureQTable();
         let s = attentionState();
@@ -762,24 +776,32 @@ namespace robotPuCap {
     /**
      * Move the head so the selected object stays centred.
      * @param object the object to track
-     * @param pitchSpeedGain pitch correction gain
-     * @param yawSpeedGain yaw correction gain
+     * @param trackGain position offset gain
+     * @param trackSpeed servo step speed
      */
-    //% block="head track %object pitch gain %pitchSpeedGain yaw gain %yawSpeedGain"
-    //% pitchSpeedGain.defl=0.2 yawSpeedGain.defl=0.2
-    //% group="Tracking"
+    //% block="head track %object gain %trackGain speed %trackSpeed"
+    //% trackGain.defl=0.3 trackSpeed.defl=0.16
+    //% group="Action"
     export function headTrackObject(object: CapObject,
-                                    pitchSpeedGain:number = 0.2, yawSpeedGain:number = 0.2): void {
+                                    trackGain: number = 0.3, trackSpeed: number = 0.16): void {
         let c = ensureCap();
-        cacheHead();
         if (c.detected(object)) {
-            let y = trackYawLocks[object] || 0;
-            let p = trackPitchLocks[object] || 0;
-            y = (y + c.packet.yaw) * 0.5;
-            p = (p + c.packet.pitch) * 0.5;
-            trackYawLocks[object] = y;
-            trackPitchLocks[object] = p;
-            moveHead(y * yawSpeedGain, p * pitchSpeedGain, true);
+            let yaw = c.packet.yaw;
+            let pitch = c.packet.pitch;
+            let smoothYaw = trackYawLocks[object] || 0;
+            let smoothPitch = trackPitchLocks[object] || 0;
+            smoothYaw = 0.5 * smoothYaw + 0.5 * yaw;
+            smoothPitch = 0.5 * smoothPitch + 0.5 * pitch;
+            trackYawLocks[object] = smoothYaw;
+            trackPitchLocks[object] = smoothPitch;
+            robotPuPro.leftEyeBright(0.05);
+            robotPuPro.rightEyeBright(0.05);
+            let targets = robotPuPro.servoTargets();
+            let currentYaw = targets[4];
+            let currentPitch = targets[5];
+            robotPuPro.setModeVar(robotPuPro.Mode.API);
+            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)));
+            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)));
         }
     }
 
@@ -795,18 +817,24 @@ namespace robotPuCap {
      * @param distance target distance to the object in millimetres
      * @param speedGain multiplier for forward speed based on distance error
      * @param turnGain multiplier for turning based on yaw error
+     * @param decay follow-through decay multiplier while the object is temporarily out of view
      */
-    //% block="follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain"
-    //% group="Soccer"
+    //% block="follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain decay %decay"
+    //% group="Action"
     //% distance.defl=150
-    export function followObject(object: CapObject, distance: number, speedGain: number, turnGain: number): void {
+    //% speedGain.min=0.001 speedGain.max=2 speedGain.defl=0.4
+    //% turnGain.min=-1 turnGain.max=1 turnGain.defl=-0.2
+    //% decay.min=0.001 decay.max=1 decay.defl=0.7
+    export function followObject(object: CapObject, distance: number, speedGain: number = 0.4, turnGain: number = -0.2, decay: number = 0.7): void {
         let c = ensureCap();
         cacheHead();
         let now = input.runningTime();
+        let p = 0;
+        let y = 0;
         if (c.detected(object)) {
             followLastTime = now;
-            let y = trackYawLocks[object] || 0;
-            let p = trackPitchLocks[object] || 0;
+            y = trackYawLocks[object] || 0;
+            p = trackPitchLocks[object] || 0;
             y = (y + c.packet.yaw) * 0.5;
             p = (p + c.packet.pitch) * 0.5;
             trackYawLocks[object] = y;
@@ -816,18 +844,21 @@ namespace robotPuCap {
             followTurn = (followTurn + Math.max(-1, Math.min(1, y * turnGain))) * 0.5;
         } else if (now - followLastTime < LOST_TIMEOUT_MS) {
             // Follow through briefly when the object is temporarily out of view.
-            followSpeed *= 0.7;
-            followTurn *= 0.9;
-            let y = trackYawLocks[object] || 0;
-            let p = trackPitchLocks[object] || 0;
-            y *= 0.7;
-            p *= 0.7;
+            y = trackYawLocks[object] || 0;
+            p = trackPitchLocks[object] || 0;
+            y *= decay;
+            p *= decay;
             trackYawLocks[object] = y;
             trackPitchLocks[object] = p;
+            followSpeed *= decay;
+            followTurn *= decay;
         } else {
             followSpeed = 0;
             followTurn = 0;
         }
+        // adjust head pitch to keep the object in the center. Use pitch trim to fine-tune the tracking.
+        robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, p*0.6);
+        // move
         robotPuPro.walk(followSpeed, followTurn);
     }
 
@@ -844,7 +875,7 @@ namespace robotPuCap {
      * @param object the object to search for
      */
     //% block="search for %object"
-    //% group="Soccer"
+    //% group="Action"
     export function searchForObject(object: CapObject): void {
         cacheHead();
         if (scanCounter > 0) {
