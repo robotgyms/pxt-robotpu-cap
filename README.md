@@ -26,7 +26,11 @@ The micro:bit polls CogniCap over I2C for object locations and voice action toke
 - CogniCap smart hat (ESP32-S3-WROOM, OV5640 camera, microphone, I2C hub)
 
 ## How to relase
-make release VERSION="0.0.2"
+Before release, must review everything with BBC MakeCode extension approval requirements.
+
+All version numbers must start with a `v`, for example `v1.0.42`.
+
+make release VERSION="v0.0.2"
 
 ## Blocks
 
