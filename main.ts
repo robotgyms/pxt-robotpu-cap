@@ -490,6 +490,9 @@ namespace robotPuCap {
      * to save ESP32-S3 processing power.
      * @param objects the CapObject detections to keep enabled
      */
+    //% block="enable detections %objects"
+    //% objects.shadow="lists_create_with"
+    //% group="Setup"
     export function enableDetections(objects: CapObject[]): void {
         let all = [CapObject.Face, CapObject.Ball, CapObject.Goal];
         let c = ensureCap();
