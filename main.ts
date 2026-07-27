@@ -809,7 +809,7 @@ namespace robotPuCap {
     let followLastTime = 0;
     let followSpeed = 0;
     let followTurn = 0;
-    const LOST_TIMEOUT_MS = 6000;
+    let LOST_TIMEOUT_MS = 3000;
 
     /**
      * Track an object with the head and compute walk speed/turn for the target distance.
@@ -824,41 +824,36 @@ namespace robotPuCap {
     //% distance.defl=150
     //% speedGain.min=0.001 speedGain.max=2 speedGain.defl=0.4
     //% turnGain.min=-1 turnGain.max=1 turnGain.defl=-0.2
-    //% decay.min=0.001 decay.max=1 decay.defl=0.7
-    export function followObject(object: CapObject, distance: number, speedGain: number = 0.4, turnGain: number = -0.2, decay: number = 0.7): void {
+    //% decay.min=0.001 decay.max=1 decay.defl=0.76
+    export function followObject(object: CapObject, distance: number, speedGain: number = 0.4, turnGain: number = -0.2, decay: number = 0.76): void {
         let c = ensureCap();
-        cacheHead();
         let now = input.runningTime();
-        let p = 0;
-        let y = 0;
+        let p = trackPitchLocks[object] || 0;
+        let y = trackYawLocks[object] || 0;
         if (c.detected(object)) {
             followLastTime = now;
-            y = trackYawLocks[object] || 0;
-            p = trackPitchLocks[object] || 0;
-            y = (y + c.packet.yaw) * 0.5;
-            p = (p + c.packet.pitch) * 0.5;
+            y = 0.9 * y + 0.1 * c.packet.yaw;
+            p = 0.9 * p + 0.1 * c.packet.pitch;
             trackYawLocks[object] = y;
             trackPitchLocks[object] = p;
-            moveHead(y * 0.08, p * 0.08, true);
+            robotPuPro.leftEyeBright(0.01);
+            robotPuPro.rightEyeBright(0.01);
             followSpeed = Math.max(-6, Math.min(6, (c.packet.y_mm - distance) * speedGain));
-            followTurn = (followTurn + Math.max(-1, Math.min(1, y * turnGain))) * 0.5;
+            followTurn = 0.8 * followTurn + 0.2 * Math.max(-1, Math.min(1, y * turnGain));
         } else if (now - followLastTime < LOST_TIMEOUT_MS) {
             // Follow through briefly when the object is temporarily out of view.
-            y = trackYawLocks[object] || 0;
-            p = trackPitchLocks[object] || 0;
-            y *= decay;
-            p *= decay;
+            y = y * decay;
+            p = p * decay;
             trackYawLocks[object] = y;
             trackPitchLocks[object] = p;
-            followSpeed *= decay;
-            followTurn *= decay;
+            followSpeed = followSpeed * decay;
+            followTurn = followTurn * decay;
         } else {
-            followSpeed = 0;
-            followTurn = 0;
+            // Back up to avoid overshooting.
+            followSpeed = -2;
         }
-        // adjust head pitch to keep the object in the center. Use pitch trim to fine-tune the tracking.
-        robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, p*0.6);
-        // move
+        // fine-tune head pitch to keep the object in the center
+        robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, p);
         robotPuPro.walk(followSpeed, followTurn);
     }
 
