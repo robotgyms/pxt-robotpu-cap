@@ -4,19 +4,29 @@
 
 `pxt-robotpu-cap` is a MakeCode extension for the BBC micro:bit V2 that adds the **CogniCap** smart hat to [Robot PU](https://robotgyms.com/pu).
 
-CogniCap is an **ESP32-S3** smart-hat accessory (ESP32-S3-WROOM + **OV5640** camera + microphone) running the RobotEU firmware. It adds:
+CogniCap is an **ESP32-S3** smart-hat accessory (ESP32-S3-WROOM + **OV5640** camera + microphone). It adds:
 
-- **AI vision** (face, soccer ball, soccer goal detection)
+- **AI vision** (face, soccer ball, soccer goal detection, and any future objects through the same generic API)
 - **Voice commands** through WakeNet wake-word and MultiNet command recognition
 - **Reinforcement learning** Q-table code built into CogniCap; together with the micro:bit RL code, Robot PU develops its own personality after you interact with it for a while
-- **High-level tracking and soccer helpers** (face tracking, ball follow, search)
+- **High-level tracking and following** with generic `headTrackObject`, `followObject`, and `searchForObject` blocks
 
-The micro:bit polls CogniCap over I2C for object locations and voice action tokens, then uses `pxt-robotpu-pro` blocks to move the robot. The extension only runs on micro:bit V2.
+The micro:bit polls CogniCap over I2C for object locations and voice action tokens. High-level blocks then drive Robot PU through `pxt-robotpu-pro`. The extension only runs on micro:bit V2.
+
+## Design highlights
+
+- **Compact, scalable I2C protocol**: Message types are split into segments (`0x00-0x0F` status/device, `0x10-0x1F` voice/audio, `0x20-0xFF` vision/detection). One packet parser handles all current and future vision objects.
+- **Generic object API**: `CapObject.Face`, `CapObject.Ball`, and `CapObject.Goal` are passed to the same `objectDetected`, `headTrackObject`, `followObject`, and `searchForObject` blocks. New objects can be added without adding new blocks.
+- **Service enabling by message type**: `enableDetection` uses the message type as the service key and keeps a per-service status dictionary, so services are automatically restored after a camera reboot.
+- **CogniCap class is independent of `robotPuPro`**: `class CogniCap` only handles I2C parsing and dispatch. Any `robotPuPro` calls live in separate high-level helper blocks, keeping the core driver clean and reusable.
 
 ## Hardware
 
 - Robot PU (micro:bit V2 compatible)
 - CogniCap smart hat (ESP32-S3-WROOM, OV5640 camera, microphone, I2C hub)
+
+## How to relase
+make release VERSION="0.0.2"
 
 ## Blocks
 
@@ -26,14 +36,25 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 
 - `start CogniCap` — power up the ESP32-S3 pipeline and start I2C packet polling.
 - `stop CogniCap` — stop the background loops.
-- `enable <face/ball/goal> detection <true/false>` — toggle a detection service.
+- `enable %object detection %enabled` — toggle a detection service by `CapObject`.
+- `enable voice commands %enabled` — toggle voice command recognition.
+- `print i2c packet` — print the last 18-byte packet to the serial console for debugging.
+
+### I2C / Events
+
+- `on i2c message type %type` — run code when a packet with the given type arrives.
+- `on %object detected` — run code when the selected object is newly detected.
+- `on wake word` — run code when the wake word is heard.
+- `on voice action %action` — run code for a specific voice command token.
+- `last action token` — the action/count byte from the last action or voice packet.
 
 ### Vision
 
-- `<face/ball/goal> detected` — returns `true` when the object is seen and fresh.
-- `<face/ball/goal> x (mm)` / `y (mm)` — ground-plane position from the camera.
-- `<face/ball/goal> width` / `height` — bounding box size in pixels.
-- `<face/ball/goal> yaw` / `pitch` — head angle to the object.
+- `%object detected` — returns `true` when the object is seen and fresh.
+- `%object x (mm)` / `%object y (mm)` — ground-plane position from the camera.
+- `%object width` / `%object height` — bounding box size in pixels.
+- `%object yaw` / `%object pitch` — head angle to the object.
+- `%object count` — detection count or score byte.
 
 ### Voice
 
@@ -57,20 +78,17 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 
 ### Tracking
 
-- `track face` — keep the head centred on a face.
-
-### Soccer
-
-- `follow ball` — track the ball and compute walk speed/turn.
-- `ball follow speed` / `ball follow turn` — read the computed values.
-- `search for ball` — scan the head to reacquire a lost ball.
+- `head track %object pitch gain %pitchSpeedGain yaw gain %yawSpeedGain` — keep the head centred on the object.
+- `follow %object distance %distance speed gain %speedGain turn gain %turnGain` — drive Robot PU toward the object while keeping the target distance.
+- `search for %object` — scan the head to reacquire a lost object.
 
 ## Example: Face tracking
 
 ```typescript
 robotPuCap.startCogniCap();
+
 basic.forever(function () {
-    robotPuCap.trackFace();
+    robotPuCap.headTrackObject(robotPuCap.CapObject.Face, 0.2, 0.2);
     basic.pause(20);
 });
 ```
@@ -79,9 +97,9 @@ basic.forever(function () {
 
 ```typescript
 robotPuCap.startCogniCap();
+
 basic.forever(function () {
-    robotPuCap.followBall();
-    robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
+    robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
     basic.pause(5);
 });
 ```
@@ -90,12 +108,12 @@ basic.forever(function () {
 
 ```typescript
 robotPuCap.startCogniCap();
+
 basic.forever(function () {
     let ballSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Ball);
     let goalSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Goal);
     if (ballSeen && goalSeen) {
-        robotPuCap.followBall();
-        // Once close to the ball, turn toward the goal and kick.
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
         if (robotPuCap.objectY(robotPuCap.CapObject.Ball) < 200) {
             let goalYaw = Math.atan2(
                 robotPuCap.objectX(robotPuCap.CapObject.Goal),
@@ -103,14 +121,11 @@ basic.forever(function () {
             ) * 57.3;
             robotPuPro.walk(1, goalYaw * -0.02);
             if (Math.abs(goalYaw) < 15) robotPuPro.kick();
-        } else {
-            robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
         }
     } else if (ballSeen) {
-        robotPuCap.followBall();
-        robotPuPro.walk(robotPuCap.ballFollowSpeed(), robotPuCap.ballFollowTurn());
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
     } else {
-        robotPuCap.searchForBall();
+        robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
         robotPuPro.walk(0, 1);
     }
     basic.pause(20);
@@ -137,7 +152,7 @@ function doAttractAction(action: number) {
     } else if (action == robotPuCap.QAction.Kick) {
         robotPuPro.kick();
     } else if (action == robotPuCap.QAction.Search) {
-        robotPuCap.searchForBall();
+        robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
     } else if (action == robotPuCap.QAction.Approach) {
         robotPuPro.walk(2, 0);
     } else {

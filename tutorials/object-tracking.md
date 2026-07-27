@@ -6,12 +6,15 @@ Track any object the CogniCap camera can see while keeping the body still. The r
 
 ## How it works
 
-- Pick the object to track by setting the `target` variable to `robotPuCap.CapObject.Face`, `.Ball`, or `.Goal`.
-- Read `object yaw` and `object pitch` for that object.
-- Smooth the angles and add them to the current head position.
-- Keep the body balanced by calling `robotPuPro.walk(0, 0)` in the same loop.
-
-`robotPuPro.walk(0, 0)` means "balance without moving".
+- `robotPuCap.startCogniCap()` starts the camera.
+- `basic.forever` runs the loop about 100 times per second (`basic.pause(10)`).
+- `objectDetected(robotPuCap.CapObject.Face)` checks whether a face is in view.
+- When a face is seen, the eyes light up and `objectYaw` / `objectPitch` give the angle to the object.
+- `smoothYaw` / `smoothPitch` filter the readings: `0.5 * old + 0.5 * new`. A bigger old weight is smoother but slower; a bigger new weight reacts faster but may jitter.
+- `robotPuPro.servoTargets()` returns the current servo positions; index `4` is head yaw and `5` is head pitch.
+- `trackGain` scales the angle into a target offset for the head.
+- `trackSpeed` turns the size of the angle into a servo step duration, so the head moves faster when the error is large (`Math.max(0.5, Math.abs(smoothYaw * trackSpeed))`).
+- `setModeVar(robotPuPro.Mode.API)` puts the servos under API control before moving them.
 
 ## Blocks used
 
@@ -19,59 +22,72 @@ Track any object the CogniCap camera can see while keeping the body still. The r
 - `object detected`
 - `object yaw`
 - `object pitch`
-- `robotPuPro.servoStep`
-- `robotPuPro.walk`
+- `set mode`
+- `servoTargets`
+- `servoStep`
+- `left eye bright`
+- `right eye bright`
 
 ## Example
 
 ```typescript
-let target = robotPuCap.CapObject.Face;
-
-robotPuCap.startCogniCap();
-
-let smoothYaw = 0;
-let smoothPitch = 0;
+let currentPitch = 0
+let currentYaw = 0
+let targets: number[] = []
+let smoothPitch = 0
+let smoothYaw = 0
+robotPuCap.startCogniCap()
+let pitch = 0
+let yaw = 0
+let trackSpeed= 0.16 // tweak it for tracking speed
+let trackGain = 0.79   // tweak it for accelration speed
 
 basic.forever(function () {
-    // Keep the body balanced without walking
-    robotPuPro.walk(0, 0);
-
     // Track the chosen object if it is visible
-    if (robotPuCap.objectDetected(target)) {
-        let yaw = robotPuCap.objectYaw(target);
-        let pitch = robotPuCap.objectPitch(target);
-
+    if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
+        // soft light of eyes
+        robotPuPro.leftEyeBright(0.05)
+        robotPuPro.rightEyeBright(0.05)
+        // get the angle to the object
+        yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Face)
+        pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Face)
         // Smooth the measured angles
-        smoothYaw = 0.5 * smoothYaw + 0.5 * yaw;
-        smoothPitch = 0.5 * smoothPitch + 0.5 * pitch;
-
+        smoothYaw = 0.5 * smoothYaw + 0.5 * yaw
+        smoothPitch = 0.5 * smoothPitch + 0.5 * pitch
         // Read the current head position and add the offset
-        let targets = robotPuPro.servoTargets();
-        let currentYaw = targets[4];
-        let currentPitch = targets[5];
-
+        targets = robotPuPro.servoTargets()
+        currentYaw = targets[4]
+        currentPitch = targets[5]
         // Move head toward the object
-        robotPuPro.setModeVar(robotPuPro.Mode.API);
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * 0.5, 2);
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * 0.5, 2);
+        robotPuPro.setModeVar(robotPuPro.Mode.API)
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain,
+            Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain,
+            Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     }
+    basic.pause(10)
+})
 
-    basic.pause(20);
-});
 ```
 
 ## Changing the target
 
-To track a different object, change the first line:
+To track a different object, replace every `robotPuCap.CapObject.Face` with `robotPuCap.CapObject.Ball` or `robotPuCap.CapObject.Goal` in the `if` and the `objectYaw` / `objectPitch` calls:
 
 ```typescript
-let target = robotPuCap.CapObject.Ball;
+if (robotPuCap.objectDetected(robotPuCap.CapObject.Ball)) {
+    yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Ball)
+    pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Ball)
+}
 ```
 
 or
 
 ```typescript
-let target = robotPuCap.CapObject.Goal;
+if (robotPuCap.objectDetected(robotPuCap.CapObject.Goal)) {
+    yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Goal)
+    pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Goal)
+}
 ```
 
 ## Adding more objects later
@@ -87,6 +103,6 @@ if (robotPuCap.objectDetected(robotPuCap.CapObject.YourNewObject)) {
 ## Tuning
 
 - `0.5` smoothing weight: closer to `1.0` follows faster but may jitter; closer to `0.0` is smoother but slower.
-- `0.5` in `currentYaw + smoothYaw * 0.5` reduces overshoot. Increase if the head is too slow.
-- `2` step size for `servoStep`: smaller is slower/smooth, larger is faster.
-- `robotPuPro.walk(0, 0)` keeps the balance loop running without moving the feet.
+- `trackGain` (`0.79`): scales how far the head turns toward the object. Increase for faster tracking; decrease to reduce overshoot.
+- `trackSpeed` (`0.16`): scales the servo step duration, so larger angles move faster. Increase for snappier motion; decrease for smoother motion.
+- The `Math.max(0.5, ...)` guard ensures the servo step duration never drops below 0.5 ms, avoiding jerky jumps.
