@@ -183,30 +183,35 @@ namespace robotPuCap {
                 while (self.enabled) {
                     for (let i = 0; i < KNOWN_SERVICES.length; i++) {
                         let svc = KNOWN_SERVICES[i];
-                        if (self.serviceStatus[svc] != SVC_OFF) {
+                        if (self.serviceStatus[svc] == SVC_OFF) {
+                            self.setService(svc, false);
+                        } else {
                             self.setService(svc, true);
                         }
-                        basic.pause(i == KNOWN_SERVICES.length - 1 ? 30000 : 10);
+                        basic.pause(i == KNOWN_SERVICES.length - 1 ? 30000 : 200);
                     }
-                    basic.pause(5000); // update it every 5 seconds
                 }
             });
             // Poll I2C packets
             control.inBackground(function () {
                 while (self.enabled) {
+                    // read data from ESP32-S3
                     self.read();
+                    // Sample microphone for attention sound spikes
+                    if (input.soundLevel() > attSoundThreshold) {
+                        attentionCount[ATT_SOUND] = (attentionCount[ATT_SOUND] || 0) + 1;
+                    }
                     basic.pause(20);
                 }
             });
-            // Sample microphone for attention sound spikes
+            // decay all attention counters
             control.inBackground(function () {
                 while (self.enabled) {
-                    if (input.soundLevel() > attSoundThreshold) {
-                        attSoundCount += 1;
-                    } else {
-                        attSoundCount *= 0.98; // decay
+                    for (let i = 0; i < ATTENTION_TYPES.length; i++) {
+                        let t = ATTENTION_TYPES[i];
+                        attentionCount[t] = (attentionCount[t] || 0) * ATTENTION_DECAY;
                     }
-                    basic.pause(50);
+                    basic.pause(1000);
                 }
             });
         }
@@ -220,9 +225,10 @@ namespace robotPuCap {
                 let p = this.packet;
                 if (p.seq != attLastPacketSeq[p.type]) {
                     attLastPacketSeq[p.type] = p.seq;
-                    if (p.type == EVT_FACE) attFaceCount += p.count;
-                    else if (p.type == EVT_VOICE) attVoiceCount += 1;
-                    else if (p.type == EVT_WAKE) attVoiceCount += p.count;
+                    if (ATTENTION_TYPES.indexOf(p.type) >= 0) {
+                        let add = p.type == EVT_VOICE ? 1 : p.count;
+                        attentionCount[p.type] = (attentionCount[p.type] || 0) + add;
+                    }
                 }
                 if (p.type < 0x20 && p.type != EVT_IDLE) {
                     if (lastEventSeq[p.type] === p.seq) return;
@@ -429,9 +435,11 @@ namespace robotPuCap {
     // Attention-attractor state
     let attSoundThreshold = 120;
     let attExplorePercent = 25;
-    let attFaceCount = 0;
-    let attVoiceCount = 0;
-    let attSoundCount = 0;
+    // Attention counters keyed by event type (EVT_VOICE, EVT_WAKE, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL) plus sound
+    const ATT_SOUND = 0x30;
+    const ATTENTION_TYPES = [EVT_VOICE, EVT_WAKE, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL, ATT_SOUND];
+    const ATTENTION_DECAY = 0.68;
+    let attentionCount: number[] = [];
     let attLastState = -1;
     let attLastAction = -1;
     let attLastPacketSeq: number[] = [];
@@ -712,9 +720,9 @@ namespace robotPuCap {
     //% block="reset attention counters"
     //% group="AI"
     export function resetAttentionCounters(): void {
-        attFaceCount = 0;
-        attVoiceCount = 0;
-        attSoundCount = 0;
+        for (let i = 0; i < ATTENTION_TYPES.length; i++) {
+            attentionCount[ATTENTION_TYPES[i]] = 0;
+        }
     }
 
     /**
@@ -724,9 +732,9 @@ namespace robotPuCap {
     //% group="AI"
     export function attentionState(): number {
         let s = 0;
-        if (attFaceCount > 0) s |= 1;
-        if (attVoiceCount > 0) s |= 2;
-        if (attSoundCount > 0) s |= 4;
+        if ((attentionCount[EVT_FACE] || 0) > 0) s |= 1;
+        if ((attentionCount[EVT_VOICE] || 0) + (attentionCount[EVT_WAKE] || 0) > 0) s |= 2;
+        if ((attentionCount[ATT_SOUND] || 0) > 0) s |= 4;
         return s;
     }
 
@@ -736,7 +744,7 @@ namespace robotPuCap {
     //% block="attention reward"
     //% group="AI"
     export function attentionReward(): number {
-        return attFaceCount + attVoiceCount * 2 + attSoundCount;
+        return (attentionCount[EVT_FACE] || 0) + ((attentionCount[EVT_VOICE] || 0) + (attentionCount[EVT_WAKE] || 0)) * 2 + (attentionCount[ATT_SOUND] || 0);
     }
 
     /**
