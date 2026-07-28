@@ -765,7 +765,7 @@ namespace robotPuCap {
     function moveHead(yawDelta: number, pitchDelta: number, brightEyes: boolean) {
         let nextYaw = clamp(currentYaw + yawDelta, -45, 45);
         let nextPitch = clamp(currentPitch + pitchDelta, -45, 45);
-        robotPuPro.setModeVar(robotPuPro.Mode.API);
+        robotPuPro.setMode(robotPuPro.Mode.API);
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 8);
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, nextPitch, 8);
         currentYaw = nextYaw;
@@ -802,7 +802,7 @@ namespace robotPuCap {
             let targets = robotPuPro.servoTargets();
             let currentYaw = targets[4];
             let currentPitch = targets[5];
-            robotPuPro.setModeVar(robotPuPro.Mode.API);
+            robotPuPro.setMode(robotPuPro.Mode.API);
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)));
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)));
         }
@@ -880,7 +880,7 @@ namespace robotPuCap {
             scanCounter -= 1;
             let y = SEARCH_Y[scanIndex] * searchGain;
             let p = SEARCH_P[scanIndex] * searchGain;
-            robotPuPro.setModeVar(robotPuPro.Mode.API);
+            robotPuPro.setMode(robotPuPro.Mode.API);
             let nextYaw = clamp(currentYaw + y, -45, 45);
             let nextPitch = clamp(currentPitch + p, -45, 45);
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 1);
