@@ -117,7 +117,7 @@ namespace robotPuCap {
         Right = 11,
         //% block="straight"
         Straight = 12,
-        //% block="wakeup"
+        //% block="wake up"
         Wakeup = 13
     }
 
@@ -308,7 +308,7 @@ namespace robotPuCap {
      * @param type the message type byte (0-255)
      * @param handler the code to run
      */
-    //% block="on i2c message type %type"
+    //% block="on I2C message type %type"
     //% type.min=0 type.max=255
     //% group="I2C Callbacks"
     //% handlerStatement=1
@@ -397,7 +397,7 @@ namespace robotPuCap {
     /**
      * Print the latest I2C packet to serial.
      */
-    //% block="print i2c packet"
+    //% block="print I2C packet"
     //% group="I2C Callbacks"
     export function printI2CPacket(): void {
         if (!cap) return;
@@ -598,7 +598,7 @@ namespace robotPuCap {
     /**
      * Get the latest action-token name as a string (e.g. "go", "straight").
      */
-    //% block="voice command"
+    //% block="latest voice command"
     //% group="Voice"
     export function getVoiceCommand(): string {
         let t = lastActionToken();
@@ -653,7 +653,7 @@ namespace robotPuCap {
      * @param action the action index
      * @param reward the reward value
      */
-    //% block="set Q reward state %state action %action reward %reward"
+    //% block="set Q reward for state %state action %action to %reward"
     //% group="AI"
     export function setQValue(state: number, action: number, reward: number): void {
         if (state < 0 || state >= maxStates || action < 0 || action >= maxActions) return;
@@ -666,7 +666,7 @@ namespace robotPuCap {
      * @param state the state index
      * @param action the action index
      */
-    //% block="Q value state %state action %action"
+    //% block="Q value for state %state action %action"
     //% group="AI"
     export function getQValue(state: number, action: number): number {
         if (state < 0 || state >= maxStates || action < 0 || action >= maxActions) return 0;
@@ -707,7 +707,7 @@ namespace robotPuCap {
      * Set the chance (0..100) of picking a random action instead of the best one.
      * @param percent exploration percentage
      */
-    //% block="set attention explore %percent"
+    //% block="set attention explore chance to %percent"
     //% percent.min=0 percent.max=100
     //% group="AI"
     export function setAttentionExplore(percent: number): void {
@@ -795,7 +795,7 @@ namespace robotPuCap {
      * @param trackGain position offset gain
      * @param trackSpeed servo step speed
      */
-    //% block="head track %object gain %trackGain speed %trackSpeed"
+    //% block="head track %object with gain %trackGain and speed %trackSpeed"
     //% trackGain.defl=0.3 trackSpeed.defl=0.16
     //% group="Action"
     export function headTrackObject(object: CapObject,
@@ -835,7 +835,7 @@ namespace robotPuCap {
      * @param turnGain multiplier for turning based on yaw error
      * @param decay follow-through decay multiplier while the object is temporarily out of view
      */
-    //% block="follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain decay %decay"
+    //% block="follow %object at %distance mm with speed gain %speedGain, turn gain %turnGain and decay %decay"
     //% group="Action"
     //% distance.defl=150
     //% speedGain.min=0.001 speedGain.max=2 speedGain.defl=0.4

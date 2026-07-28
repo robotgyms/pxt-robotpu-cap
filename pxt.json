@@ -14,7 +14,8 @@
         "main.ts",
         "README.md",
         "_locales/pxt-robotpu-cap-strings.json",
-        "_locales/zh-CN/pxt-robotpu-cap-strings.json"
+        "_locales/zh-CN/pxt-robotpu-cap-strings.json",
+        "_locales/zh-TW/pxt-robotpu-cap-strings.json"
     ],
     "testFiles": [
         "test.ts"

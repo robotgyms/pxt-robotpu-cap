@@ -2,9 +2,9 @@
 
 ## Overview
 
-`pxt-robotpu-cap` is a MakeCode extension for the BBC micro:bit V2 that adds the **CogniCap** smart hat to [Robot PU](https://robotgyms.com/pu).
+`pxt-robotpu-cap` is a MakeCode extension for the BBC micro:bit V2 that adds the **CogniCap**, the AI Cap, to [Robot PU](https://robotgyms.com/pu).
 
-CogniCap is an **ESP32-S3** smart-hat accessory (ESP32-S3-WROOM + **OV5640** camera + microphone). It adds:
+CogniCap is an **ESP32-S3** accessory (ESP32-S3-WROOM + **OV5640** camera + microphone). It adds:
 
 - **AI vision** (face, soccer ball, soccer goal detection, and any future objects through the same generic API)
 - **Voice commands** through WakeNet wake-word and MultiNet command recognition
@@ -23,9 +23,9 @@ The micro:bit polls CogniCap over I2C for object locations and voice action toke
 ## Hardware
 
 - Robot PU (micro:bit V2 compatible)
-- CogniCap smart hat (ESP32-S3-WROOM, OV5640 camera, microphone, I2C hub)
+- CogniCap smart hat (ESP32-S3, OV5640 camera, microphone, I2C hub)
 
-## How to relase
+## How to release
 Before release, must review everything with BBC MakeCode extension approval requirements.
 
 All version numbers must start with a `v`, for example `v1.0.42`.
@@ -146,7 +146,7 @@ robotPuCap.resetQTable();
 
 function doAttractAction(action: number) {
     if (action == robotPuCap.QAction.Dance) {
-        robotPuPro.setModeVar(robotPuPro.Mode.Dance);
+        robotPuPro.setMode(robotPuPro.Mode.Dance);
     } else if (action == robotPuCap.QAction.Walk) {
         robotPuPro.walk(2, 0);
     } else if (action == robotPuCap.QAction.TurnLeft) {
@@ -160,7 +160,7 @@ function doAttractAction(action: number) {
     } else if (action == robotPuCap.QAction.Approach) {
         robotPuPro.walk(2, 0);
     } else {
-        robotPuPro.setModeVar(robotPuPro.Mode.Rest);
+        robotPuPro.setMode(robotPuPro.Mode.Rest);
     }
 }
 
