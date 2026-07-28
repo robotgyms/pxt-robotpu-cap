@@ -41,30 +41,35 @@ The robot stops roughly `distance` millimetres from the object. A larger `distan
 ## Example
 
 ```typescript
-let distance = 150
-let speedGain = 0.4
-let turnGain = -0.05
-let decay = 0.76
-let lostTimeout = 3000
-let headGain = 0.08
-let headSpeed = 8
-let followLastTime = 0
-let followSpeed = 0
 let followTurn = 0
-let smoothYaw = 0
+let followSpeed = 0
 let smoothPitch = 0
+let smoothYaw = 0
+let pitch = 0
+let yaw = 0
+let followLastTime = 0
+let now = 0
 let currentYaw = 0
 let currentPitch = 0
 let targets: number[] = []
-let yaw = 0
-let pitch = 0
-let now = 0
-
+let distance = 150
+let speedGain = 0.4
+let turnGain = -0.07
+let decay = 0.9
+let lostTimeout = 5000
+let headGain = 0.08
+let headSpeed = 8
 robotPuCap.startCogniCap()
 robotPuCap.enableDetections([robotPuCap.CapObject.Ball])
-
+robotPuPro.setServoTrim(robotPuPro.ServoJoint.LeftFoot, -5)
+robotPuPro.setServoTrim(robotPuPro.ServoJoint.RightFoot, -5)
+robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadYaw, -8)
 basic.forever(function () {
     now = input.runningTime()
+    // followTurn = 0
+    // smoothYaw = 0
+    // smoothPitch = 0
+    // robotPuCap.searchForObject(robotPuCap.CapObject.Ball)
     if (robotPuCap.objectDetected(robotPuCap.CapObject.Ball)) {
         followLastTime = now
         yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Ball)
@@ -74,25 +79,25 @@ basic.forever(function () {
         robotPuPro.leftEyeBright(0.01)
         robotPuPro.rightEyeBright(0.01)
         followSpeed = Math.max(-6, Math.min(6, (robotPuCap.objectY(robotPuCap.CapObject.Ball) - distance) * speedGain))
-        followTurn = 0.8*followTurn + 0.2*Math.max(-1, Math.min(1, smoothYaw * turnGain))
+        followTurn = 0.8 * followTurn + 0.2 * Math.max(-1, Math.min(1, smoothYaw * turnGain))
     } else if (now - followLastTime < lostTimeout) {
         smoothYaw = smoothYaw * decay
         smoothPitch = smoothPitch * decay
         followSpeed = followSpeed * decay
         followTurn = followTurn * decay
-    } else {
-        // back up to avoid overshooting
+    } else if (now - followLastTime < 1.5 * lostTimeout) {
+        // back up, hopefuly to find the object again
         followSpeed = -2
-        //followTurn = 0
-        // smoothYaw = 0
-        // smoothPitch = 0
-        // robotPuCap.searchForObject(robotPuCap.CapObject.Ball)
+    } else {
+        // lost the sight of object, stop
+        followSpeed = 0
     }
-    serial.writeLine("headTrim:"+smoothPitch * 0.1)
-    robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch+5)
-    robotPuPro.walk(followSpeed, followTurn)
+    serial.writeLine("headTrim:" + smoothPitch * 0.1)
+    robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch + 5)
+    robotPuPro.walkDo(followSpeed, followTurn)
     basic.pause(5)
 })
+
 ```
 
 Replace `CapObject.Ball` with `CapObject.Face` or `CapObject.Goal` to follow a different object.
