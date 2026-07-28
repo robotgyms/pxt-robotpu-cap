@@ -188,7 +188,7 @@ namespace robotPuCap {
                         } else {
                             self.setService(svc, true);
                         }
-                        basic.pause(i == KNOWN_SERVICES.length - 1 ? 30000 : 200);
+                        basic.pause(i == KNOWN_SERVICES.length - 1 ? 30000 : 500);
                     }
                 }
             });

@@ -48,7 +48,7 @@ let smoothPitch = 0
 let smoothYaw = 0
 let pitch = 0
 let yaw = 0
-let lostTimeout = 1500
+let lostTimeout = 1000
 let now = 0
 let followLastTime = 0
 let decay = 0.8
@@ -76,13 +76,10 @@ basic.forever(function () {
         targets = robotPuPro.servoTargets()
         currentYaw = targets[4]
         currentPitch = targets[5]
-        // Move head toward the object
-        robotPuPro.setModeVar(robotPuPro.Mode.API)
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
         serial.writeLine("yaw:"+smoothYaw)
         serial.writeLine("pitch:"+smoothPitch)
     } else if (now - followLastTime < lostTimeout) {
+        // follow through
         smoothYaw = smoothYaw * decay
         smoothPitch = smoothPitch * decay
     } else if (now - followLastTime < 3*lostTimeout) {
@@ -93,12 +90,10 @@ basic.forever(function () {
     }
 
     // Move head toward the object
-    robotPuPro.setModeVar(robotPuPro.Mode.API)
+    robotPuPro.setMode(robotPuPro.Mode.API)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)
-})
-
 })
 
 ```
