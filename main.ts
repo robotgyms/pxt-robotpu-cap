@@ -135,7 +135,7 @@ namespace robotPuCap {
         h: number;
         yaw: number;
         pitch: number;
-        fresh: boolean;
+        valid: boolean;
         rxTime: number;
         constructor() {
             this.type = 0;
@@ -151,7 +151,7 @@ namespace robotPuCap {
             this.h = 0;
             this.yaw = 0;
             this.pitch = 0;
-            this.fresh = false;
+            this.valid = false;
             this.rxTime = 0;
         }
     }
@@ -160,6 +160,7 @@ namespace robotPuCap {
         enabled: boolean;
         packet: CogniCapPacket;
         serviceStatus: number[];
+
         constructor() {
             this.enabled = false;
             this.packet = new CogniCapPacket();
@@ -187,6 +188,7 @@ namespace robotPuCap {
                         }
                         basic.pause(i == KNOWN_SERVICES.length - 1 ? 30000 : 10);
                     }
+                    basic.pause(5000); // update it every 5 seconds
                 }
             });
             // Poll I2C packets
@@ -201,6 +203,8 @@ namespace robotPuCap {
                 while (self.enabled) {
                     if (input.soundLevel() > attSoundThreshold) {
                         attSoundCount += 1;
+                    } else {
+                        attSoundCount *= 0.98; // decay
                     }
                     basic.pause(50);
                 }
@@ -245,11 +249,12 @@ namespace robotPuCap {
                 p.yaw = i8(buf[16]);
                 p.pitch = i8(buf[17]);
             }
-            p.fresh = (p.flags & VALID) != 0 && (p.flags & STALE) == 0;
+            // set fresh if the sequence number is different
+            p.valid = (p.flags & VALID) != 0;
             p.rxTime = input.runningTime();
         }
         detected(kind: number): boolean {
-            return this.enabled && this.packet.type == kind && this.packet.count > 0 && this.packet.fresh;
+            return this.enabled && this.packet.type == kind && this.packet.count > 0 && this.packet.valid;
         }
     }
 
@@ -381,7 +386,7 @@ namespace robotPuCap {
      */
     //% block="last object valid"
     //% group="I2C Callbacks"
-    export function lastObjectValid(): boolean { return cap ? cap.packet.fresh : false; }
+    export function lastObjectValid(): boolean { return cap ? cap.packet.valid : false; }
 
     /**
      * Print the latest I2C packet to serial.
@@ -598,7 +603,7 @@ namespace robotPuCap {
     //% block="last action token"
     //% group="Voice"
     export function lastActionToken(): number {
-        return cap && isActionToken(cap.packet.type) && cap.packet.fresh ? cap.packet.count : 0;
+        return cap && isActionToken(cap.packet.type) && cap.packet.valid ? cap.packet.count : 0;
     }
 
     /**

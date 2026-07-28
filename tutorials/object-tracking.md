@@ -30,58 +30,41 @@ Track any object the CogniCap camera can see while keeping the body still. The r
 
 ## Example
 
-```typescript
+```typescriptlet currentPitch = 0
+let currentYaw = 0
+let targets: number[] = []
 let smoothPitch = 0
 let smoothYaw = 0
 let pitch = 0
 let yaw = 0
-let followLastTime = 0
-let now = 0
-let targets: number[] = []
-let currentPitch = 0
-let currentYaw = 0
-let followSpeed = 0
-let followTurn = 0
-let distance = 150
-let speedGain = 0.4
-let turnGain = -0.05
-let decay = 0.76
-let lostTimeout = 3000
-let headGain = 0.08
-let headSpeed = 8
 robotPuCap.startCogniCap()
-robotPuCap.enableDetections([robotPuCap.CapObject.Ball])
+// tweak it for tracking speed, high value will cause oscillation
+let trackSpeed = 0.16
+// tweak it for accelration speed, high value will cause oscillation
+let trackGain = 0.3
 basic.forever(function () {
-    now = input.runningTime()
-    // followTurn = 0
-    // smoothYaw = 0
-    // smoothPitch = 0
-    // robotPuCap.searchForObject(robotPuCap.CapObject.Ball)
-    if (robotPuCap.objectDetected(robotPuCap.CapObject.Ball)) {
-        followLastTime = now
-        yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Ball)
-        pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Ball)
-        smoothYaw = 0.9 * smoothYaw + 0.1 * yaw
-        smoothPitch = 0.9 * smoothPitch + 0.1 * pitch
-        robotPuPro.leftEyeBright(0.01)
-        robotPuPro.rightEyeBright(0.01)
-        followSpeed = Math.max(-6, Math.min(6, (robotPuCap.objectY(robotPuCap.CapObject.Ball) - distance) * speedGain))
-        followTurn = 0.8 * followTurn + 0.2 * Math.max(-1, Math.min(1, smoothYaw * turnGain))
-    } else if (now - followLastTime < lostTimeout) {
-        smoothYaw = smoothYaw * decay
-        smoothPitch = smoothPitch * decay
-        followSpeed = followSpeed * decay
-        followTurn = followTurn * decay
-    } else {
-        // back up to avoid overshooting
-        followSpeed = -2
+    // Track the chosen object if it is visible
+    if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
+        // soft light of eyes
+        robotPuPro.leftEyeBright(0.05)
+        robotPuPro.rightEyeBright(0.05)
+        // get the angle to the object
+        yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Face)
+        pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Face)
+        // Smooth the measured angles
+        smoothYaw = 0.5 * smoothYaw + 0.5 * yaw
+        smoothPitch = 0.5 * smoothPitch + 0.5 * pitch
+        // Read the current head position and add the offset
+        targets = robotPuPro.servoTargets()
+        currentYaw = targets[4]
+        currentPitch = targets[5]
+        // Move head toward the object
+        robotPuPro.setModeVar(robotPuPro.Mode.API)
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     }
-    serial.writeLine("headTrim:" + smoothPitch * 0.1)
-    robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch + 5)
-    robotPuPro.walkDo(followSpeed, followTurn)
     basic.pause(5)
 })
-
 ```
 
 ## Changing the target
