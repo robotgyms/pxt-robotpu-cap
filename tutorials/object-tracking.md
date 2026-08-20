@@ -38,24 +38,28 @@ let smoothPitch = 0
 let smoothYaw = 0
 let pitch = 0
 let yaw = 0
-let lostTimeout = 1000
-let now = 0
+let detectionInterval = 0
 let followLastTime = 0
+let now = 0
+let lostTimeout = 1000
 let decay = 0.7
-
 robotPuCap.startCogniCap()
+// turn on face detection only
+robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.3
+let trackSpeed = 0.10
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.4
+let trackGain = 0.2
 // main event loop
 basic.forever(function () {
     now = input.runningTime()
     // Track the chosen object if it is visible
     if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
+        detectionInterval = now - followLastTime
         followLastTime = now
         // soft light of eyes, and look at you
-        robotPuPro.blink(1)
+        robotPuPro.leftEyeBright(0.05)
+        robotPuPro.rightEyeBright(0.05)
         // get the angle to the object
         yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Face)
         pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Face)
@@ -66,32 +70,31 @@ basic.forever(function () {
         targets = robotPuPro.servoTargets()
         currentYaw = targets[4]
         currentPitch = targets[5]
-        serial.writeLine("yaw:"+smoothYaw)
-        serial.writeLine("pitch:"+smoothPitch)
-    } else if (now - followLastTime < lostTimeout) {
+        serial.writeLine("yaw:" + smoothYaw)
+        serial.writeLine("pitch:" + smoothPitch)
+    } else if (now - followLastTime < Math.min(detectionInterval, lostTimeout)) {
         // follow through
         smoothYaw = smoothYaw * decay
         smoothPitch = smoothPitch * decay
         // eyes brighter
-        robotPuPro.blink(2)
-    } else if (now - followLastTime < 2*lostTimeout) {
+        robotPuPro.blink(1)
+    } else if (now - followLastTime < 2 * lostTimeout) {
         smoothYaw = 0
         smoothPitch = 0
         // eyes much brighter
-        robotPuPro.blink(3)
+        robotPuPro.blink(2)
     } else {
         robotPuPro.stand()
         // eyes so bright to look for you
         robotPuPro.blink(5)
     }
-
     // Move head toward the object
     robotPuPro.setMode(robotPuPro.Mode.API)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
-
     basic.pause(5)
 })
+
 
 ```
 

@@ -16,9 +16,9 @@ This program is the same logic as `robotPuCap.followObject()`, written out so ev
 6. `followTurn` is the clamped `smoothYaw * turnGain`, smoothed with `0.8 * old + 0.2 * new`.
 7. If the object is lost briefly, `followSpeed`, `followTurn`, and the smoothed angles decay by the `decay` multiplier for up to `lostTimeout` ms.
 8. Between `lostTimeout` and `1.5 * lostTimeout`, the robot backs up slowly (`followSpeed = -2`) to try to reacquire the object.
-9. After `1.5 * lostTimeout`, it stops (`followSpeed = 0`).
-10. `robotPuPro.setServoTrim(HeadPitch, smoothPitch + 5)` tilts the head to follow the object's vertical angle.
-11. `robotPuPro.walk(followSpeed, followTurn)` moves the robot. To scan while searching, uncomment the `searchForObject(...)` line in the loop.
+9. After `1.5 * lostTimeout`, it calls `robotPuPro.explore()` to actively search for the object.
+10. `robotPuPro.setServoTrim(HeadPitch, smoothPitch + 10)` tilts the head to follow the object's vertical angle.
+11. `robotPuPro.walkDo(followSpeed, followTurn)` moves the robot. To scan while searching, uncomment the `searchForObject(...)` line in the loop.
 
 The robot stops roughly `distance` millimetres from the object. A larger `distance` stops farther away; a smaller `distance` lets it get closer.
 
@@ -33,7 +33,8 @@ The robot stops roughly `distance` millimetres from the object. A larger `distan
 - `left eye bright`
 - `right eye bright`
 - `set servo trim`
-- `walk`
+- `walkDo`
+- `explore`
 
 ## Example
 
@@ -46,18 +47,24 @@ let pitch = 0
 let yaw = 0
 let followLastTime = 0
 let now = 0
+let targets: number[] = []
+let currentPitch = 0
+let currentYaw = 0
 let distance = 150
 let speedGain = 0.4
 let turnGain = -0.07
 let decay = 0.9
 let lostTimeout = 5000
+let headGain = 0.08
+let headSpeed = 8
 robotPuCap.startCogniCap()
 robotPuCap.enableDetections([robotPuCap.CapObject.Ball])
-// adjust servo trim if needed
-robotPuPro.setServoTrim(robotPuPro.ServoJoint.LeftFoot, -5)
-robotPuPro.setServoTrim(robotPuPro.ServoJoint.RightFoot, -5)
-robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadYaw, -8)
-// main event loop
+robotPuPro.setServoTrim(0, 0)
+robotPuPro.setServoTrim(1, 0)
+robotPuPro.setServoTrim(2, 5)
+robotPuPro.setServoTrim(3, 0)
+robotPuPro.setServoTrim(4, -9)
+robotPuPro.setServoTrim(5, 0)
 basic.forever(function () {
     now = input.runningTime()
     // followTurn = 0
@@ -80,17 +87,18 @@ basic.forever(function () {
         followSpeed = followSpeed * decay
         followTurn = followTurn * decay
     } else if (now - followLastTime < 1.5 * lostTimeout) {
-        // back up, hopefully to find the object again
+        // back up, hopefuly to find the object again
         followSpeed = -2
     } else {
-        // lost the sight of object, stop
-        followSpeed = 0
+        // lost the sight of object, explore
+        robotPuPro.explore()
     }
-    serial.writeLine("headTrim:" + smoothPitch * 0.1)
-    robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch + 5)
-    robotPuPro.walk(followSpeed, followTurn)
+    // serial.writeLine("headTrim:" + smoothPitch * 0.1)
+    robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch + 10)
+    robotPuPro.walkDo(followSpeed, followTurn)
     basic.pause(5)
 })
+
 
 ```
 
@@ -105,4 +113,4 @@ Replace `CapObject.Ball` with `CapObject.Face` or `CapObject.Goal` to follow a d
 - `lostTimeout` (5000) is how long the robot keeps decaying before backing up after losing the object.
 - `0.9`/`0.1` yaw/pitch smoothing: give the `old` value more weight for smoother, slower motion; give the `new` value more weight for faster, jitterier motion.
 - `0.8`/`0.2` `followTurn` smoothing: same idea for the turn command.
-- To scan while searching for the object, uncomment the `searchForObject(...)` line in the loop.
+- To scan while searching for the object, you can uncomment the `searchForObject(...)` line in the loop, or let the `explore()` fallback run after the object has been lost for longer than `1.5 * lostTimeout`.

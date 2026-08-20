@@ -8,7 +8,7 @@
         "radio": "*",
         "microphone": "*",
         "settings": "*",
-        "pxt-robotpu-pro": "github:robotgyms/pxt-robotpu#v1.0.79"
+        "pxt-robotpu-pro": "github:robotgyms/pxt-robotpu#v1.0.82"
     },
     "files": [
         "main.ts",
