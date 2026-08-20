@@ -14,10 +14,13 @@ The tutorials are arranged from low-level I2C commands up to high-level behaviou
 | 4 | [I2C Event Handling](i2c-event-handlling.md) | ★★ | React to packets with `onObjectDetected`, `onI2CMessage`, `onVoiceAction`. |
 | 5 | [Object Tracking](object-tracking.md) | ★★★ | Track face, ball, or goal while keeping the body still. |
 | 6 | [Face Interaction](face-interaction.md) | ★★★ | Keep the head pointed at a face and add fun reactions. |
-| 7 | [Ball Following](ball-following.md) | ★★★★ | Follow a soccer ball on the floor. |
-| 8 | [Soccer Game](soccer-game.md) | ★★★★ | Find the ball, align to the goal, and kick. |
-| 9 | [Voice Control](voice-control.md) | ★★★ | Wake the robot and drive it with WakeNet/MultiNet voice commands. |
-| 10 | [Personality with Q-Learning](personality-qtable.md) | ★★★★★ | Train a 64-state Q-table during rest to give Robot PU a personality. |
+| 7 | [Interact and Random Talk](interact-random-talk.md) | ★★★ | Track a face, randomly talk, and explore when the face is lost. |
+| 8 | [Ball Following](ball-following.md) | ★★★★ | Follow a soccer ball on the floor. |
+| 9 | [Object Following](object-following.md) | ★★★★ | Hand-code the `followObject` feedback loop and tune it. |
+| 10 | [Soccer Game](soccer-game.md) | ★★★★ | Find the ball, align to the goal, and kick. |
+| 11 | [Voice Control](voice-control.md) | ★★★ | Wake the robot and drive it with WakeNet/MultiNet voice commands. |
+| 12 | [Personality with Q-Learning](personality-qtable.md) | ★★★★★ | Train a 64-state Q-table during rest to give Robot PU a personality. |
+| 13 | [QTable Follow and Kick](qtable-follow-kick-ball.md) | ★★★★★ | Use a Q-table to tweak feedback gains and switch mode for following and kicking the ball. |
 
 ## Requirements
 
