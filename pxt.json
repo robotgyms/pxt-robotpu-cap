@@ -1,6 +1,6 @@
 {
     "name": "pxt-robotpu-cap",
-    "version": "0.0.11",
+    "version": "0.0.12",
     "description": "CogniCap add-on for Robot PU (BBC micro:bit V2 only). Adds ESP32-S3 vision, voice control and Q-table reinforcement learning.",
     "license": "MIT",
     "dependencies": {
@@ -8,7 +8,7 @@
         "radio": "*",
         "microphone": "*",
         "settings": "*",
-        "pxt-robotpu-pro": "github:robotgyms/pxt-robotpu#v1.0.90"
+        "pxt-robotpu-pro": "github:robotgyms/pxt-robotpu#v1.0.91"
     },
     "files": [
         "main.ts",
