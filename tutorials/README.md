@@ -21,6 +21,7 @@ The tutorials are arranged from low-level I2C commands up to high-level behaviou
 | 11 | [Voice Control](voice-control.md) | ★★★ | Wake the robot and drive it with WakeNet/MultiNet voice commands. |
 | 12 | [Personality with Q-Learning](personality-qtable.md) | ★★★★★ | Train a 64-state Q-table during rest to give Robot PU a personality. |
 | 13 | [QTable Follow and Kick](qtable-follow-kick-ball.md) | ★★★★★ | Use a Q-table to tweak feedback gains and switch mode for following and kicking the ball. |
+| 14 | [Walkie-Talkie](walkie-talkie.md) | ★★★★ | Follow a face, walk to keep a comfortable distance, and talk with 30 random conversation starters. |
 
 ## Requirements
 
