@@ -22,6 +22,7 @@ namespace robotPuCap {
     const EVT_ROBOT = 0x05;
     const EVT_VOICE = 0x10;       // 0x10-0x1F voice / audio
     const EVT_WAKE = 0x11;
+    const EVT_SENTIMENT = 0x12;
     const EVT_FACE = 0x20;        // 0x20-0xFF vision / detection
     const EVT_SOCCER_BALL = 0x21;
     const EVT_SOCCER_GOAL = 0x22;
@@ -38,7 +39,7 @@ namespace robotPuCap {
     const SVC_OFF = 0;
     const SVC_ON = 1;
     const SVC_ERR = 2;
-    const KNOWN_SERVICES = [EVT_WIFI, EVT_CAMERA, EVT_VOICE, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL];
+    const KNOWN_SERVICES = [EVT_WIFI, EVT_CAMERA, EVT_VOICE, EVT_SENTIMENT, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL];
 
     // Packet parsing helpers
     function i16(buf: Buffer, offset: number): number {
@@ -61,9 +62,9 @@ namespace robotPuCap {
     export enum CapObject {
         //% block="face"
         Face = EVT_FACE,
-        //% block="ball"
+        //% block="soccer ball"
         Ball = EVT_SOCCER_BALL,
-        //% block="goal"
+        //% block="soccer goal"
         Goal = EVT_SOCCER_GOAL
     }
 
@@ -118,7 +119,58 @@ namespace robotPuCap {
         //% block="straight"
         Straight = 12,
         //% block="wake up"
-        Wakeup = 13
+        Wakeup = 13,
+        //% block="walk"
+        Walk = 14,
+        //% block="walk backward"
+        WalkBackward = 15,
+        //% block="turn left"
+        TurnLeft = 16,
+        //% block="turn right"
+        TurnRight = 17,
+        //% block="explore"
+        Explore = 18,
+        //% block="sit"
+        Sit = 19,
+        //% block="stand"
+        Stand = 20,
+        //% block="laugh"
+        Laugh = 21,
+        //% block="cry"
+        Cry = 22,
+        //% block="scream"
+        Scream = 23,
+        //% block="funny"
+        Funny = 24,
+        //% block="blink"
+        Blink = 25,
+        //% block="greet"
+        Greet = 26,
+        //% block="drive"
+        Drive = 27,
+        //% block="calibrate"
+        Calibrate = 28,
+        //% block="duck"
+        Duck = 29
+    }
+
+    /**
+     * Sentiment / feedback tokens issued by the ESP32-S3.
+     * These do not map to robot actions; they update the personality Q-table.
+     */
+    export enum Sentiment {
+        //% block="no"
+        No = 0,
+        //% block="bad"
+        Bad = 1,
+        //% block="okay"
+        Okay = 2,
+        //% block="good"
+        Good = 3,
+        //% block="great"
+        Great = 4,
+        //% block="excellent"
+        Excellent = 5
     }
 
     class CogniCapPacket {
@@ -277,17 +329,205 @@ namespace robotPuCap {
     // I2C callback registry
     let handlers: (() => void)[] = [];
     let actionHandlers: (() => void)[] = [];
+    let voiceCommandHandler: (() => void) | undefined = undefined;
+    let lastVoiceCommandToken: number = -1;
     let lastEventSeq: number[] = [];
     function isActionToken(type: number): boolean {
         return type == EVT_ACTION || type == EVT_VOICE;
     }
 
     function dispatch(type: number, token: number = 0): void {
+        if (type == EVT_VOICE) {
+            lastVoiceCommandToken = token;
+        }
         let handler = handlers[type];
         if (handler) handler();
-        if (isActionToken(type)) {
+        if (type == EVT_SENTIMENT) {
+            applySentiment(token);
+        } else if (isActionToken(type)) {
             let ah = actionHandlers[token];
-            if (ah) ah();
+            if (ah) {
+                ah();
+            } else if (type == EVT_VOICE && voiceCommandHandler) {
+                voiceCommandHandler();
+            } else if (type == EVT_VOICE && voiceActionEngineEnabled) {
+                runVoiceActionEngine(token);
+            }
+        }
+    }
+
+    // Voice command action engine: map I2C VoiceAction tokens to robotPuPro.startAction.
+    let voiceActionEngineEnabled = true;
+    let lastEngineVoiceToken = -1;
+    let lastVoicePacketMs = 0;
+
+    /**
+     * Command execution modes.
+     */
+    export enum CommandMode {
+        //% block="obedient"
+        Obedient = 0,
+        //% block="personality"
+        Personality = 1
+    }
+
+    let commandMode = CommandMode.Obedient;
+
+    /**
+     * Set the command execution mode.
+     * @param mode the mode to use
+     */
+    //% block="set command mode to %mode"
+    //% group="Setup"
+    export function setCommandMode(mode: CommandMode): void {
+        commandMode = mode;
+    }
+
+    /**
+     * Obedient mode: execute the voice token exactly as requested.
+     */
+    function runObedientVoiceAction(token: number): void {
+        if (token == VoiceAction.Sing) {
+            robotPuPro.sing("C4 D4 E4 F4 G4 A4 B4 C5", 120);
+            robotPuPro.watchDogOn();
+            return;
+        }
+        if (token == VoiceAction.Talk) {
+            robotPuPro.greet();
+            robotPuPro.watchDogOn();
+            return;
+        }
+        if (token == VoiceAction.Drive) {
+            if (token != lastEngineVoiceToken) {
+                robotPuPro.start(robotPuPro.Action.Drive, 0);
+                robotPuPro.setWalkSpeed(3);
+                robotPuPro.setWalkDirection(0);
+            }
+            robotPuPro.watchDogOn();
+            return;
+        }
+
+        const action = voiceActionToRobotAction(token);
+        const steps = voiceActionSteps(token);
+        if (token != lastEngineVoiceToken) {
+            robotPuPro.start(action, steps);
+        }
+        // Refresh the dead-man watchdog for every packet in the command stream.
+        robotPuPro.watchDogOn();
+    }
+
+    /**
+     * Personality / Q-table mode: the robot may decide to refuse the command,
+     * say something, or do something else. For now it is a placeholder.
+     */
+    function runPersonalityVoiceAction(token: number): void {
+        // TODO: consult the attention / personality Q-table to decide what to do.
+        // If the Q-table refuses, use billy.say(...) and a different robotPuPro action.
+        // For now, fall through to obedient mode so the robot still responds.
+        runObedientVoiceAction(token);
+    }
+
+    /**
+     * Sentiment / feedback token values.
+     * Positive tokens reward the last personality action; negative tokens punish it.
+     */
+    function sentimentReward(token: number): number {
+        switch (token) {
+            case Sentiment.No: return -20;
+            case Sentiment.Bad: return -10;
+            case Sentiment.Okay: return -1;
+            case Sentiment.Good: return 5;
+            case Sentiment.Great: return 8;
+            case Sentiment.Excellent: return 10;
+            default: return 0;
+        }
+    }
+
+    /**
+     * Use a sentiment token to update the Q-table entry for the last state-action pair.
+     * Positive sentiment brightens the eyes; negative sentiment dims them.
+     */
+    function applySentiment(token: number): void {
+        const reward = sentimentReward(token);
+        if (attLastState >= 0 && attLastAction >= 0) {
+            const old = getQValue(attLastState, attLastAction);
+            setQValue(attLastState, attLastAction, old + reward);
+        }
+        if (reward > 0) {
+            robotPuPro.leftEyeBright(0.01 * reward);
+            robotPuPro.rightEyeBright(0.01 * reward);
+        } else if (reward < 0) {
+            robotPuPro.leftEyeBright(0);
+            robotPuPro.rightEyeBright(0);
+        }
+    }
+
+    function runVoiceActionEngine(token: number): void {
+        const now = input.runningTime();
+        // A gap of more than 500 ms means a new command window, so allow re-triggering the same token.
+        if (now - lastVoicePacketMs > 500) {
+            lastEngineVoiceToken = -1;
+        }
+        lastVoicePacketMs = now;
+
+        if (commandMode == CommandMode.Personality) {
+            runPersonalityVoiceAction(token);
+        } else {
+            runObedientVoiceAction(token);
+        }
+        // Track the last token we acted on.
+        lastEngineVoiceToken = token;
+    }
+
+    function voiceActionToRobotAction(token: number): robotPuPro.Action {
+        switch (token) {
+            case VoiceAction.Rest: return robotPuPro.Action.Rest;
+            case VoiceAction.Go: return robotPuPro.Action.Walk;
+            case VoiceAction.Back: return robotPuPro.Action.WalkBackward;
+            case VoiceAction.Stop: return robotPuPro.Action.Rest;
+            case VoiceAction.Jump: return robotPuPro.Action.Jump;
+            case VoiceAction.Kick: return robotPuPro.Action.Kick;
+            case VoiceAction.Dance: return robotPuPro.Action.Dance;
+            case VoiceAction.Left: return robotPuPro.Action.TurnLeft;
+            case VoiceAction.Right: return robotPuPro.Action.TurnRight;
+            case VoiceAction.Straight: return robotPuPro.Action.Walk;
+            case VoiceAction.Wakeup: return robotPuPro.Action.Greet;
+            case VoiceAction.Walk: return robotPuPro.Action.Walk;
+            case VoiceAction.WalkBackward: return robotPuPro.Action.WalkBackward;
+            case VoiceAction.TurnLeft: return robotPuPro.Action.TurnLeft;
+            case VoiceAction.TurnRight: return robotPuPro.Action.TurnRight;
+            case VoiceAction.Explore: return robotPuPro.Action.Explore;
+            case VoiceAction.Sit: return robotPuPro.Action.Sit;
+            case VoiceAction.Stand: return robotPuPro.Action.Stand;
+            case VoiceAction.Laugh: return robotPuPro.Action.Laugh;
+            case VoiceAction.Cry: return robotPuPro.Action.Cry;
+            case VoiceAction.Scream: return robotPuPro.Action.Scream;
+            case VoiceAction.Funny: return robotPuPro.Action.Funny;
+            case VoiceAction.Blink: return robotPuPro.Action.Blink;
+            case VoiceAction.Greet: return robotPuPro.Action.Greet;
+            case VoiceAction.Drive: return robotPuPro.Action.Drive;
+            case VoiceAction.Calibrate: return robotPuPro.Action.Calibrate;
+            case VoiceAction.Duck: return robotPuPro.Action.Duck;
+            default: return robotPuPro.Action.Rest;
+        }
+    }
+
+    function voiceActionSteps(token: number): number {
+        // Continuous motions run until the command stream stops (dead-man watchdog).
+        // One-shot motions run one cycle and then return to idle.
+        switch (token) {
+            case VoiceAction.Jump:
+            case VoiceAction.Kick:
+            case VoiceAction.Laugh:
+            case VoiceAction.Cry:
+            case VoiceAction.Scream:
+            case VoiceAction.Funny:
+            case VoiceAction.Blink:
+            case VoiceAction.Greet:
+            case VoiceAction.Wakeup:
+                return 1;
+            default:
+                return 0;
         }
     }
 
@@ -592,7 +832,15 @@ namespace robotPuCap {
 
     // Voice / action token name table
     const VOICE_NAMES = [
-        "", "rest", "go", "back", "stop", "jump", "kick", "sing", "talk", "dance", "left", "right", "straight", "wakeup"
+        "", "rest", "go", "back", "stop", "jump", "kick", "sing", "talk", "dance",
+        "left", "right", "straight", "wakeup", "walk", "walk backward", "turn left",
+        "turn right", "explore", "sit", "stand", "laugh", "cry", "scream", "funny",
+        "blink", "greet", "drive", "calibrate", "duck"
+    ];
+
+    // Sentiment / feedback token name table
+    const SENTIMENT_NAMES = [
+        "", "bad", "okay", "good", "great", "excellent"
     ];
 
     /**
@@ -630,11 +878,31 @@ namespace robotPuCap {
      * @param action the action token to watch for
      * @param handler the code to run
      */
-    //% block="on voice action %action"
+    //% block="on voice command %action"
     //% group="Voice"
     //% handlerStatement=1
     export function onVoiceAction(action: VoiceAction, handler: () => void): void {
         actionHandlers[action] = handler;
+    }
+
+    /**
+     * Run code when any voice command is received.
+     * Use `last voice command` inside the handler to decide which action to run.
+     */
+    //% block="on any voice command"
+    //% group="Voice"
+    //% handlerStatement=1
+    export function onVoiceCommand(handler: () => void): void {
+        voiceCommandHandler = handler;
+    }
+
+    /**
+     * Get the most recent voice command token received from CogniCap.
+     */
+    //% block="last voice command"
+    //% group="Voice"
+    export function lastVoiceCommand(): number {
+        return lastVoiceCommandToken;
     }
 
     /**
@@ -645,6 +913,28 @@ namespace robotPuCap {
     //% group="Setup"
     export function enableVoiceCommands(enabled: boolean): void {
         ensureCap().setService(EVT_VOICE, enabled);
+    }
+
+    /**
+     * Enable or disable the sentiment feedback service on the ESP32-S3.
+     * @param enabled true to enable, false to disable
+     */
+    //% block="enable sentiment feedback %enabled"
+    //% group="Setup"
+    export function enableSentimentCommands(enabled: boolean): void {
+        ensureCap().setService(EVT_SENTIMENT, enabled);
+    }
+
+    /**
+     * Enable or disable the automatic voice-action engine.
+     * When enabled, CogniCap voice commands are mapped to robotPuPro.startAction(...)
+     * unless an onVoiceAction handler is registered for that token.
+     * @param enabled true to enable, false to disable
+     */
+    //% block="enable voice action engine %enabled"
+    //% group="Setup"
+    export function enableVoiceActionEngine(enabled: boolean): void {
+        voiceActionEngineEnabled = enabled;
     }
 
     /**
@@ -778,7 +1068,6 @@ namespace robotPuCap {
     function moveHead(yawDelta: number, pitchDelta: number, brightEyes: boolean) {
         let nextYaw = clamp(currentYaw + yawDelta, -45, 45);
         let nextPitch = clamp(currentPitch + pitchDelta, -45, 45);
-        robotPuPro.setMode(robotPuPro.Mode.API);
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 8);
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, nextPitch, 8);
         currentYaw = nextYaw;
@@ -815,7 +1104,6 @@ namespace robotPuCap {
             let targets = robotPuPro.servoTargets();
             let currentYaw = targets[4];
             let currentPitch = targets[5];
-            robotPuPro.setMode(robotPuPro.Mode.API);
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)));
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)));
         }
@@ -893,7 +1181,6 @@ namespace robotPuCap {
             scanCounter -= 1;
             let y = SEARCH_Y[scanIndex] * searchGain;
             let p = SEARCH_P[scanIndex] * searchGain;
-            robotPuPro.setMode(robotPuPro.Mode.API);
             let nextYaw = clamp(currentYaw + y, -45, 45);
             let nextPitch = clamp(currentPitch + p, -45, 45);
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, nextYaw, 1);
