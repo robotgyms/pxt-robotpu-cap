@@ -49,8 +49,10 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 - `on i2c message type %type` — run code when a packet with the given type arrives.
 - `on %object detected` — run code when the selected object is newly detected.
 - `on wake word` — run code when the wake word is heard.
-- `on voice action %action` — run code for a specific voice command token.
-- `last action token` — the action/count byte from the last action or voice packet.
+- `on voice command %action` — run code for a specific voice command token.
+- `on any voice command` — run code for every recognised voice command; use `last voice command` inside.
+- `last voice command` — the `VoiceAction` token from the latest `EVT_VOICE` packet.
+- `last action token` — the action/count byte from the last `EVT_ACTION` or `EVT_VOICE` packet.
 
 ### Vision
 
@@ -62,7 +64,15 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 
 ### Voice
 
-- `voice command` — latest recognised command string (placeholder).
+- `on voice command %action` — run code when a specific command is recognised.
+- `on any voice command` — run code when any command is recognised.
+- `last voice command` — the token of the latest recognised command.
+- `enable voice action engine %enabled` — let the built-in engine map commands to `robotPuPro` actions.
+- `enable sentiment feedback %enabled` — listen for feedback words (`No`, `Bad`, `Okay`, `Good`, `Great`, `Excellent`).
+- `latest voice command` — the recognised command string, when available.
+
+The `VoiceAction` enum contains the words the ESP32-S3 can learn with MultiNet:
+`rest`, `go`, `back`, `stop`, `jump`, `kick`, `sing`, `talk`, `dance`, `left`, `right`, `straight`, `wake up`, `walk`, `walk backward`, `turn left`, `turn right`, `explore`, `sit`, `stand`, `laugh`, `cry`, `scream`, `funny`, `blink`, `greet`, `drive`, `calibrate`, `duck`.
 
 ### Learning
 

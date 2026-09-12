@@ -76,10 +76,11 @@ For these packets `x_mm..pitch` are zero. `count` holds the action token or a st
 
 ### 3.2 Voice / audio (`0x10-0x1F`)
 
-| Constant    | Value  | Meaning                                                                 |
-|-------------|--------|-------------------------------------------------------------------------|
-| `EVT_VOICE` | `0x10` | MultiNet voice command recognised; `count` = `VoiceAction` token        |
-| `EVT_WAKE`  | `0x11` | WakeNet wake-word triggered; `count` = number of wake events            |
+| Constant       | Value  | Meaning                                                                 |
+|----------------|--------|-------------------------------------------------------------------------|
+| `EVT_VOICE`    | `0x10` | MultiNet voice command recognised; `count` = `VoiceAction` token        |
+| `EVT_WAKE`     | `0x11` | WakeNet wake-word triggered; `count` = number of wake events            |
+| `EVT_SENTIMENT`| `0x12` | MultiNet sentiment feedback; `count` = `Sentiment` token                |
 
 `count` is the action token for `EVT_VOICE` and is also used to dispatch the matching `on voice action %action` handler on the micro:bit.
 
@@ -117,21 +118,39 @@ The micro:bit uses `count` as an action token whenever `isActionToken(type)` is 
 
 ### 5.1 `VoiceAction` token values
 
-| Token name  | Value  | Block label     |
-|-------------|--------|-----------------|
-| `Rest`      | `1`    | rest            |
-| `Go`        | `2`    | go              |
-| `Back`      | `3`    | back            |
-| `Stop`      | `4`    | stop            |
-| `Jump`      | `5`    | jump            |
-| `Kick`      | `6`    | kick            |
-| `Sing`      | `7`    | sing            |
-| `Talk`      | `8`    | talk            |
-| `Dance`     | `9`    | dance           |
-| `Left`      | `10`   | left            |
-| `Right`     | `11`   | right           |
-| `Straight`  | `12`   | straight        |
-| `Wakeup`    | `13`   | wakeup          |
+| Token name    | Value  | Block label       |
+|---------------|--------|-------------------|
+| `Rest`        | `1`    | rest              |
+| `Go`          | `2`    | go                |
+| `Back`        | `3`    | back              |
+| `Stop`        | `4`    | stop              |
+| `Jump`        | `5`    | jump              |
+| `Kick`        | `6`    | kick              |
+| `Sing`        | `7`    | sing              |
+| `Talk`        | `8`    | talk              |
+| `Dance`       | `9`    | dance             |
+| `Left`        | `10`   | left              |
+| `Right`       | `11`   | right             |
+| `Straight`    | `12`   | straight          |
+| `Wakeup`      | `13`   | wake up           |
+| `Walk`        | `14`   | walk              |
+| `WalkBackward`| `15`   | walk backward     |
+| `TurnLeft`    | `16`   | turn left         |
+| `TurnRight`   | `17`   | turn right        |
+| `Explore`     | `18`   | explore           |
+| `Sit`         | `19`   | sit               |
+| `Stand`       | `20`   | stand             |
+| `Laugh`       | `21`   | laugh             |
+| `Cry`         | `22`   | cry               |
+| `Scream`      | `23`   | scream            |
+| `Funny`       | `24`   | funny             |
+| `Blink`       | `25`   | blink             |
+| `Greet`       | `26`   | greet             |
+| `Drive`       | `27`   | drive             |
+| `Calibrate`   | `28`   | calibrate         |
+| `Duck`        | `29`   | duck              |
+
+> Sentiment / feedback tokens are defined separately in §5.3.
 
 ### 5.2 `QAction` high-level action values (for reference)
 
@@ -147,6 +166,21 @@ These are used on the micro:bit side when it dispatches an `attention action`. T
 | `Kick`      | `5`    |
 | `Search`    | `6`    |
 | `Approach`  | `7`    |
+
+### 5.3 `Sentiment` token values
+
+Sentiment tokens are sent in `EVT_SENTIMENT` packets. They do not trigger robot actions; they update the personality Q-table.
+
+For best MultiNet accuracy, use short, distinct single-word labels. Multi-word phrases such as `don't do it` are harder to recognise reliably and should be avoided.
+
+| Token name  | Value  | Block label | Reward |
+|-------------|--------|-------------|--------|
+| `No`        | `0`    | no          | -20    |
+| `Bad`       | `1`    | bad         | -10    |
+| `Okay`      | `2`    | okay        | -1     |
+| `Good`      | `3`    | good        | +5     |
+| `Great`     | `4`    | great       | +8     |
+| `Excellent` | `5`    | excellent   | +10    |
 
 ## 6. Service Enable Protocol
 
@@ -238,6 +272,7 @@ obj type=<type> ver=<ver> seq=<seq> flags=<flags> count=<count> score=<score> x_
 - [ ] Increment `seq` on every packet.
 - [ ] Implement `CMD_SERVICE_ENABLE` (3-byte write) and keep a service-state table keyed by `type`.
 - [ ] For `EVT_VOICE` set `count` to one of the `VoiceAction` token values in §5.1.
+- [ ] For `EVT_SENTIMENT` set `count` to one of the `Sentiment` token values in §5.3.
 - [ ] For vision packets (`type >= 0x20`) populate `x_mm`, `y_mm`, `z_mm`, `w`, `h`, `yaw`, `pitch`.
 - [ ] For status/voice packets (`type < 0x20`) zero bytes 6-17 and use `count` / `score` for tokens/status.
 - [ ] Support at least the known services listed in §6.
@@ -261,6 +296,7 @@ namespace CogniCapProtocol {
     constexpr uint8_t EVT_ROBOT       = 0x05;
     constexpr uint8_t EVT_VOICE       = 0x10;
     constexpr uint8_t EVT_WAKE        = 0x11;
+    constexpr uint8_t EVT_SENTIMENT   = 0x12;
     constexpr uint8_t EVT_FACE        = 0x20;
     constexpr uint8_t EVT_SOCCER_BALL = 0x21;
     constexpr uint8_t EVT_SOCCER_GOAL = 0x22;
@@ -292,6 +328,15 @@ namespace CogniCapProtocol {
         Right   = 11,
         Straight= 12,
         Wakeup  = 13
+    };
+
+    enum class Sentiment : uint8_t {
+        No        = 0,
+        Bad       = 1,
+        Okay      = 2,
+        Good      = 3,
+        Great     = 4,
+        Excellent = 5
     };
 }
 ```

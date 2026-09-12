@@ -30,35 +30,35 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 
 | Token | Word | Suggested action |
 |-------|------|------------------|
-| `Rest` | rest | `robotPuPro.rest()` |
-| `Go` | go | `robotPuPro.walk(5, 0)` |
-| `Back` | back | `robotPuPro.walk(-3, 0)` |
-| `Stop` | stop | `robotPuPro.rest()` |
+| `Rest` | rest | `robotPuPro.start(robotPuPro.Action.Rest, 0)` |
+| `Go` | go | `robotPuPro.start(robotPuPro.Action.Walk, 0)` |
+| `Back` | back | `robotPuPro.start(robotPuPro.Action.WalkBackward, 0)` |
+| `Stop` | stop | `robotPuPro.start(robotPuPro.Action.Rest, 0)` |
 | `Jump` | jump | `robotPuPro.start(robotPuPro.Action.Jump, 1)` |
 | `Kick` | kick | `robotPuPro.start(robotPuPro.Action.Kick, 1)` |
 | `Sing` | sing | `billy.say("la la la")` / `music.play(...)` |
 | `Talk` | talk | `billy.say("hello")` |
-| `Dance` | dance | `robotPuPro.start(robotPuPro.Action.Dance, 1)` |
-| `Left` | left | `robotPuPro.walk(0, -1)` |
-| `Right` | right | `robotPuPro.walk(0, 1)` |
-| `Straight` | straight | `robotPuPro.walk(5, 0)` |
-| `Wakeup` | wake up | `robotPuPro.stand()` / wake-up sound |
-| `Walk` | walk | `robotPuPro.walk(5, 0)` |
-| `WalkBackward` | walk backward | `robotPuPro.walk(-4, 0)` |
-| `TurnLeft` | turn left | `robotPuPro.walk(0, -2)` |
-| `TurnRight` | turn right | `robotPuPro.walk(0, 2)` |
-| `Explore` | explore | `robotPuPro.explore()` |
-| `Sit` | sit | `robotPuPro.sit()` |
-| `Stand` | stand | `robotPuPro.stand()` |
+| `Dance` | dance | `robotPuPro.start(robotPuPro.Action.Dance, 0)` |
+| `Left` | left | `robotPuPro.start(robotPuPro.Action.TurnLeft, 0)` |
+| `Right` | right | `robotPuPro.start(robotPuPro.Action.TurnRight, 0)` |
+| `Straight` | straight | `robotPuPro.start(robotPuPro.Action.Walk, 0)` |
+| `Wakeup` | wake up | `robotPuPro.start(robotPuPro.Action.Greet, 1)` |
+| `Walk` | walk | `robotPuPro.start(robotPuPro.Action.Walk, 0)` |
+| `WalkBackward` | walk backward | `robotPuPro.start(robotPuPro.Action.WalkBackward, 0)` |
+| `TurnLeft` | turn left | `robotPuPro.start(robotPuPro.Action.TurnLeft, 0)` |
+| `TurnRight` | turn right | `robotPuPro.start(robotPuPro.Action.TurnRight, 0)` |
+| `Explore` | explore | `robotPuPro.start(robotPuPro.Action.Explore, 0)` |
+| `Sit` | sit | `robotPuPro.start(robotPuPro.Action.Sit, 0)` |
+| `Stand` | stand | `robotPuPro.start(robotPuPro.Action.Stand, 0)` |
 | `Laugh` | laugh | `robotPuPro.start(robotPuPro.Action.Laugh, 1)` |
 | `Cry` | cry | `robotPuPro.start(robotPuPro.Action.Cry, 1)` |
 | `Scream` | scream | `robotPuPro.start(robotPuPro.Action.Scream, 1)` |
 | `Funny` | funny | `robotPuPro.start(robotPuPro.Action.Funny, 1)` |
-| `Blink` | blink | `robotPuPro.blink(3)` |
-| `Greet` | greet | `billy.say("hello I see you")` |
+| `Blink` | blink | `robotPuPro.start(robotPuPro.Action.Blink, 1)` |
+| `Greet` | greet | `robotPuPro.start(robotPuPro.Action.Greet, 1)` |
 | `Drive` | drive | `robotPuPro.start(robotPuPro.Action.Drive, 0)` |
-| `Calibrate` | calibrate | `robotPuPro.start(robotPuPro.Action.Calibrate, 1)` |
-| `Duck` | duck | `robotPuPro.start(robotPuPro.Action.Duck, 1)` |
+| `Calibrate` | calibrate | `robotPuPro.start(robotPuPro.Action.Calibrate, 0)` |
+| `Duck` | duck | `robotPuPro.start(robotPuPro.Action.Duck, 0)` |
 
 ## Blocks used
 
@@ -68,7 +68,7 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 - `on any voice command`
 - `last voice command`
 - `enable voice action engine`
-- `rest`, `walk`, `stand`, `sit`, `explore`, `blink`
+- `start action %action steps %steps`
 - `billy say`
 
 ## Example
@@ -83,39 +83,39 @@ robotPuCap.enableVoiceCommands(true)
 // If every token has a handler or you use on any voice command,
 // the engine is bypassed for those tokens.
 
-robotPuCap.onVoiceAction(VoiceAction.Go, function () {
-    robotPuPro.walk(5, 0)
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Go, function () {
+    robotPuPro.start(robotPuPro.Action.Walk, 0)
     billy.say("going")
 })
 
-robotPuCap.onVoiceAction(VoiceAction.Stop, function () {
-    robotPuPro.rest()
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Stop, function () {
+    robotPuPro.start(robotPuPro.Action.Rest, 0)
     billy.say("stopped")
 })
 
-robotPuCap.onVoiceAction(VoiceAction.TurnLeft, function () {
-    robotPuPro.walk(0, -2)
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.TurnLeft, function () {
+    robotPuPro.start(robotPuPro.Action.TurnLeft, 0)
 })
 
-robotPuCap.onVoiceAction(VoiceAction.TurnRight, function () {
-    robotPuPro.walk(0, 2)
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.TurnRight, function () {
+    robotPuPro.start(robotPuPro.Action.TurnRight, 0)
 })
 
-robotPuCap.onVoiceAction(VoiceAction.Walk, function () {
-    robotPuPro.walk(5, 0)
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Walk, function () {
+    robotPuPro.start(robotPuPro.Action.Walk, 0)
 })
 
-robotPuCap.onVoiceAction(VoiceAction.Kick, function () {
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Kick, function () {
     robotPuPro.start(robotPuPro.Action.Kick, 1)
     billy.say("kick")
 })
 
-robotPuCap.onVoiceAction(VoiceAction.Sit, function () {
-    robotPuPro.sit()
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Sit, function () {
+    robotPuPro.start(robotPuPro.Action.Sit, 0)
 })
 
-robotPuCap.onVoiceAction(VoiceAction.Stand, function () {
-    robotPuPro.stand()
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Stand, function () {
+    robotPuPro.start(robotPuPro.Action.Stand, 0)
 })
 ```
 
@@ -126,25 +126,25 @@ If you prefer to put everything in one event, use `on any voice command` and a c
 ```typescript
 robotPuCap.onVoiceCommand(function () {
     let cmd = robotPuCap.lastVoiceCommand()
-    if (cmd == VoiceAction.Go || cmd == VoiceAction.Walk || cmd == VoiceAction.Straight) {
-        robotPuPro.walk(5, 0)
-    } else if (cmd == VoiceAction.Back || cmd == VoiceAction.WalkBackward) {
-        robotPuPro.walk(-4, 0)
-    } else if (cmd == VoiceAction.Stop || cmd == VoiceAction.Rest) {
-        robotPuPro.rest()
-    } else if (cmd == VoiceAction.Left || cmd == VoiceAction.TurnLeft) {
-        robotPuPro.walk(0, -2)
-    } else if (cmd == VoiceAction.Right || cmd == VoiceAction.TurnRight) {
-        robotPuPro.walk(0, 2)
-    } else if (cmd == VoiceAction.Sit) {
-        robotPuPro.sit()
-    } else if (cmd == VoiceAction.Stand) {
-        robotPuPro.stand()
-    } else if (cmd == VoiceAction.Kick) {
+    if (cmd == robotPuCap.VoiceAction.Go || cmd == robotPuCap.VoiceAction.Walk || cmd == robotPuCap.VoiceAction.Straight) {
+        robotPuPro.start(robotPuPro.Action.Walk, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Back || cmd == robotPuCap.VoiceAction.WalkBackward) {
+        robotPuPro.start(robotPuPro.Action.WalkBackward, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Stop || cmd == robotPuCap.VoiceAction.Rest) {
+        robotPuPro.start(robotPuPro.Action.Rest, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Left || cmd == robotPuCap.VoiceAction.TurnLeft) {
+        robotPuPro.start(robotPuPro.Action.TurnLeft, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Right || cmd == robotPuCap.VoiceAction.TurnRight) {
+        robotPuPro.start(robotPuPro.Action.TurnRight, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Sit) {
+        robotPuPro.start(robotPuPro.Action.Sit, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Stand) {
+        robotPuPro.start(robotPuPro.Action.Stand, 0)
+    } else if (cmd == robotPuCap.VoiceAction.Kick) {
         robotPuPro.start(robotPuPro.Action.Kick, 1)
     } else {
         // unknown or unhandled command
-        robotPuPro.blink(1)
+        robotPuPro.start(robotPuPro.Action.Blink, 1)
     }
 })
 ```
@@ -155,7 +155,8 @@ robotPuCap.onVoiceCommand(function () {
 - The default `enable voice action engine true` is useful for quick tests; the robot moves as soon as a command is recognised.
 - Use `on voice command %action` when you want direct, per-command mapping.
 - Use `on any voice command` when you want one place to decide what to do, especially for experimenting with personality or Q-table logic.
-- The exact `robotPuPro` actions that exist depend on the installed `pxt-robotpu-pro` package. If `Action.Kick`, `Action.Drive`, or `watchDogOn` are unavailable, replace them with `walk`, `rest`, or `stand`.
+- Continuous actions (`Walk`, `TurnLeft`, `Sit`, `Dance`, etc.) use `start(..., 0)` and run until the command stream stops.
+- One-shot actions (`Kick`, `Jump`, `Blink`, `Greet`, etc.) use `start(..., 1)` and run one cycle.
 
 ## What to try next
 
