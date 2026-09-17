@@ -7,22 +7,31 @@ description: Link spoken commands such as go, stop, walk, and kick to Robot PU a
 
 Use the `VoiceAction` tokens from the CogniCap MultiNet voice service to make the robot move, rest, or react when you say a command. You can register one handler per command, or one handler for all commands and inspect the latest token.
 
+## What you need
+
+- BBC micro:bit V2
+- Robot PU
+- CogniCap smart hat with a microphone
+- CogniCap firmware with **WakeNet** wake-word and **MultiNet** command recognition enabled
+
 ## Goal
 
 - Enable the MultiNet voice service on CogniCap.
 - Map spoken commands to `robotPuPro` actions.
 - Use `on voice command %action` for a single command.
 - Use `on any voice command` with `last voice command` to handle every command in one place.
-- Decide when the built-in voice-action engine should run and when your code takes over.
+- Combine wake words, state variables, and voice commands for richer behaviours.
 
 ## How it works
 
 1. `robotPuCap.startCogniCap()` starts the I2C loop that reads packets from the ESP32-S3.
 2. `robotPuCap.enableVoiceCommands(true)` tells the ESP32-S3 to listen for MultiNet voice commands.
-3. The default `enable voice action engine true` automatically maps every recognised word to a `robotPuPro` action.
-4. When you drag an `on voice command %action` block, that token gets a custom handler and the engine does **not** run for that token.
-5. When you drag an `on any voice command` block, **all** tokens go to your handler, so the engine does not run at all.
-6. `last voice command` returns the most recent `VoiceAction` token, which you can compare with the `VoiceAction` enum to choose an action.
+3. The CogniCap hat listens for a wake word using **WakeNet** and recognises command words using **MultiNet**.
+4. When a command is heard, CogniCap sends an I2C packet with type `0x10` (`EVT_VOICE`) and the `VoiceAction` token in the `count` byte.
+5. There is **no default voice-action engine**. The robot only moves or speaks when your code tells it to.
+6. When you drag an `on voice command %action` block, that token gets a custom handler.
+7. When you drag an `on any voice command` block, **all** tokens go to your handler.
+8. `last voice command` returns the most recent `VoiceAction` token, which you can compare with the `robotPuCap.VoiceAction` enum to choose an action.
 
 ## Available voice commands
 
@@ -64,24 +73,20 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 
 - `start CogniCap`
 - `enable voice commands`
+- `on wake word`
 - `on voice command %action`
 - `on any voice command`
 - `last voice command`
-- `enable voice action engine`
 - `start action %action steps %steps`
 - `billy say`
 
-## Example
+## Example: One handler per command
 
-This example registers one handler for each of the most common commands. Because a handler is registered for every token, the built-in engine is bypassed and your code is in full control.
+This example registers one handler for each of the most common commands.
 
 ```typescript
 robotPuCap.startCogniCap()
 robotPuCap.enableVoiceCommands(true)
-
-// If you do not use on voice command for every token, leave the engine on.
-// If every token has a handler or you use on any voice command,
-// the engine is bypassed for those tokens.
 
 robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Go, function () {
     robotPuPro.start(robotPuPro.Action.Walk, 0)
@@ -119,7 +124,48 @@ robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Stand, function () {
 })
 ```
 
-### One handler for every command
+## Example: Wake word and go / stop state
+
+Use the wake word as a "ready" signal, then a `go` command makes the robot walk until `stop` is said. The `straight`, `back`, `left`, and `right` commands do short moves.
+
+```typescript
+let exploring = false
+
+robotPuCap.startCogniCap()
+robotPuCap.enableVoiceCommands(true)
+
+robotPuCap.onWakeWord(function () {
+    basic.showIcon(IconNames.Surprised)
+})
+
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Go, function () {
+    exploring = true
+    robotPuPro.start(robotPuPro.Action.Explore, 0)
+})
+
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Stop, function () {
+    exploring = false
+    robotPuPro.start(robotPuPro.Action.Rest, 0)
+})
+
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Straight, function () {
+    robotPuPro.start(robotPuPro.Action.Walk, 0)
+})
+
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Back, function () {
+    robotPuPro.start(robotPuPro.Action.WalkBackward, 0)
+})
+
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Left, function () {
+    robotPuPro.start(robotPuPro.Action.TurnLeft, 0)
+})
+
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Right, function () {
+    robotPuPro.start(robotPuPro.Action.TurnRight, 0)
+})
+```
+
+## Example: One handler for every command
 
 If you prefer to put everything in one event, use `on any voice command` and a chain of `if` checks.
 
@@ -149,14 +195,106 @@ robotPuCap.onVoiceCommand(function () {
 })
 ```
 
+## Example: All 29 voice commands in one handler
+
+This `on any voice command` example maps **every** supported `VoiceAction` token to a `robotPuPro` action. It uses a `switch` statement in TypeScript.
+
+```typescript
+robotPuCap.startCogniCap()
+robotPuCap.enableVoiceCommands(true)
+
+robotPuCap.onVoiceCommand(function () {
+    let cmd = robotPuCap.lastVoiceCommand()
+    switch (cmd) {
+        case robotPuCap.VoiceAction.Rest:
+        case robotPuCap.VoiceAction.Stop:
+            robotPuPro.start(robotPuPro.Action.Rest, 0)
+            break
+        case robotPuCap.VoiceAction.Go:
+        case robotPuCap.VoiceAction.Straight:
+        case robotPuCap.VoiceAction.Walk:
+            robotPuPro.start(robotPuPro.Action.Walk, 0)
+            break
+        case robotPuCap.VoiceAction.Back:
+        case robotPuCap.VoiceAction.WalkBackward:
+            robotPuPro.start(robotPuPro.Action.WalkBackward, 0)
+            break
+        case robotPuCap.VoiceAction.Left:
+        case robotPuCap.VoiceAction.TurnLeft:
+            robotPuPro.start(robotPuPro.Action.TurnLeft, 0)
+            break
+        case robotPuCap.VoiceAction.Right:
+        case robotPuCap.VoiceAction.TurnRight:
+            robotPuPro.start(robotPuPro.Action.TurnRight, 0)
+            break
+        case robotPuCap.VoiceAction.Jump:
+            robotPuPro.start(robotPuPro.Action.Jump, 1)
+            break
+        case robotPuCap.VoiceAction.Kick:
+            robotPuPro.start(robotPuPro.Action.Kick, 1)
+            billy.say("kick")
+            break
+        case robotPuCap.VoiceAction.Sing:
+            billy.say("la la la")
+            break
+        case robotPuCap.VoiceAction.Talk:
+            billy.say("hello")
+            break
+        case robotPuCap.VoiceAction.Dance:
+            robotPuPro.start(robotPuPro.Action.Dance, 0)
+            break
+        case robotPuCap.VoiceAction.Wakeup:
+        case robotPuCap.VoiceAction.Greet:
+            robotPuPro.start(robotPuPro.Action.Greet, 1)
+            break
+        case robotPuCap.VoiceAction.Explore:
+            robotPuPro.start(robotPuPro.Action.Explore, 0)
+            break
+        case robotPuCap.VoiceAction.Sit:
+            robotPuPro.start(robotPuPro.Action.Sit, 0)
+            break
+        case robotPuCap.VoiceAction.Stand:
+            robotPuPro.start(robotPuPro.Action.Stand, 0)
+            break
+        case robotPuCap.VoiceAction.Laugh:
+            robotPuPro.start(robotPuPro.Action.Laugh, 1)
+            break
+        case robotPuCap.VoiceAction.Cry:
+            robotPuPro.start(robotPuPro.Action.Cry, 1)
+            break
+        case robotPuCap.VoiceAction.Scream:
+            robotPuPro.start(robotPuPro.Action.Scream, 1)
+            break
+        case robotPuCap.VoiceAction.Funny:
+            robotPuPro.start(robotPuPro.Action.Funny, 1)
+            break
+        case robotPuCap.VoiceAction.Blink:
+            robotPuPro.start(robotPuPro.Action.Blink, 1)
+            break
+        case robotPuCap.VoiceAction.Drive:
+            robotPuPro.start(robotPuPro.Action.Drive, 0)
+            break
+        case robotPuCap.VoiceAction.Calibrate:
+            robotPuPro.start(robotPuPro.Action.Calibrate, 0)
+            break
+        case robotPuCap.VoiceAction.Duck:
+            robotPuPro.start(robotPuPro.Action.Duck, 0)
+            break
+        default:
+            robotPuPro.start(robotPuPro.Action.Blink, 1)
+    }
+})
+```
+
 ## Tuning
 
 - `enable voice commands true` must run before `on voice command` events will fire.
-- The default `enable voice action engine true` is useful for quick tests; the robot moves as soon as a command is recognised.
+- There is no default voice-action engine. The robot only reacts when you add an `on voice command` or `on any voice command` handler.
 - Use `on voice command %action` when you want direct, per-command mapping.
 - Use `on any voice command` when you want one place to decide what to do, especially for experimenting with personality or Q-table logic.
 - Continuous actions (`Walk`, `TurnLeft`, `Sit`, `Dance`, etc.) use `start(..., 0)` and run until the command stream stops.
 - One-shot actions (`Kick`, `Jump`, `Blink`, `Greet`, etc.) use `start(..., 1)` and run one cycle.
+- MultiNet is a compact keyword spotter. On memory-constrained setups a mock backend may be used, so some command words are generated from the token table instead of being truly recognised.
 
 ## What to try next
 

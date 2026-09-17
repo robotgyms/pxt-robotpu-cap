@@ -67,7 +67,6 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 - `on voice command %action` — run code when a specific command is recognised.
 - `on any voice command` — run code when any command is recognised.
 - `last voice command` — the token of the latest recognised command.
-- `enable voice action engine %enabled` — let the built-in engine map commands to `robotPuPro` actions.
 - `enable sentiment feedback %enabled` — listen for feedback words (`No`, `Bad`, `Okay`, `Good`, `Great`, `Excellent`).
 - `latest voice command` — the recognised command string, when available.
 

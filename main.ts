@@ -350,82 +350,13 @@ namespace robotPuCap {
                 ah();
             } else if (type == EVT_VOICE && voiceCommandHandler) {
                 voiceCommandHandler();
-            } else if (type == EVT_VOICE && voiceActionEngineEnabled) {
-                runVoiceActionEngine(token);
             }
         }
     }
 
     // Voice command action engine: map I2C VoiceAction tokens to robotPuPro.startAction.
-    let voiceActionEngineEnabled = true;
-    let lastEngineVoiceToken = -1;
-    let lastVoicePacketMs = 0;
-
-    /**
-     * Command execution modes.
-     */
-    export enum CommandMode {
-        //% block="obedient"
-        Obedient = 0,
-        //% block="personality"
-        Personality = 1
-    }
-
-    let commandMode = CommandMode.Obedient;
-
-    /**
-     * Set the command execution mode.
-     * @param mode the mode to use
-     */
-    //% block="set command mode to %mode"
-    //% group="Setup"
-    export function setCommandMode(mode: CommandMode): void {
-        commandMode = mode;
-    }
-
-    /**
-     * Obedient mode: execute the voice token exactly as requested.
-     */
-    function runObedientVoiceAction(token: number): void {
-        if (token == VoiceAction.Sing) {
-            robotPuPro.sing("C4 D4 E4 F4 G4 A4 B4 C5", 120);
-            robotPuPro.watchDogOn();
-            return;
-        }
-        if (token == VoiceAction.Talk) {
-            robotPuPro.greet();
-            robotPuPro.watchDogOn();
-            return;
-        }
-        if (token == VoiceAction.Drive) {
-            if (token != lastEngineVoiceToken) {
-                robotPuPro.start(robotPuPro.Action.Drive, 0);
-                robotPuPro.setWalkSpeed(3);
-                robotPuPro.setWalkDirection(0);
-            }
-            robotPuPro.watchDogOn();
-            return;
-        }
-
-        const action = voiceActionToRobotAction(token);
-        const steps = voiceActionSteps(token);
-        if (token != lastEngineVoiceToken) {
-            robotPuPro.start(action, steps);
-        }
-        // Refresh the dead-man watchdog for every packet in the command stream.
-        robotPuPro.watchDogOn();
-    }
-
-    /**
-     * Personality / Q-table mode: the robot may decide to refuse the command,
-     * say something, or do something else. For now it is a placeholder.
-     */
-    function runPersonalityVoiceAction(token: number): void {
-        // TODO: consult the attention / personality Q-table to decide what to do.
-        // If the Q-table refuses, use billy.say(...) and a different robotPuPro action.
-        // For now, fall through to obedient mode so the robot still responds.
-        runObedientVoiceAction(token);
-    }
+    // Off by default so users are not surprised by automatic robot motion or sounds.
+    // All voice actions must come from user code. There is no default engine.
 
     /**
      * Sentiment / feedback token values.
@@ -459,75 +390,6 @@ namespace robotPuCap {
         } else if (reward < 0) {
             robotPuPro.leftEyeBright(0);
             robotPuPro.rightEyeBright(0);
-        }
-    }
-
-    function runVoiceActionEngine(token: number): void {
-        const now = input.runningTime();
-        // A gap of more than 500 ms means a new command window, so allow re-triggering the same token.
-        if (now - lastVoicePacketMs > 500) {
-            lastEngineVoiceToken = -1;
-        }
-        lastVoicePacketMs = now;
-
-        if (commandMode == CommandMode.Personality) {
-            runPersonalityVoiceAction(token);
-        } else {
-            runObedientVoiceAction(token);
-        }
-        // Track the last token we acted on.
-        lastEngineVoiceToken = token;
-    }
-
-    function voiceActionToRobotAction(token: number): robotPuPro.Action {
-        switch (token) {
-            case VoiceAction.Rest: return robotPuPro.Action.Rest;
-            case VoiceAction.Go: return robotPuPro.Action.Walk;
-            case VoiceAction.Back: return robotPuPro.Action.WalkBackward;
-            case VoiceAction.Stop: return robotPuPro.Action.Rest;
-            case VoiceAction.Jump: return robotPuPro.Action.Jump;
-            case VoiceAction.Kick: return robotPuPro.Action.Kick;
-            case VoiceAction.Dance: return robotPuPro.Action.Dance;
-            case VoiceAction.Left: return robotPuPro.Action.TurnLeft;
-            case VoiceAction.Right: return robotPuPro.Action.TurnRight;
-            case VoiceAction.Straight: return robotPuPro.Action.Walk;
-            case VoiceAction.Wakeup: return robotPuPro.Action.Greet;
-            case VoiceAction.Walk: return robotPuPro.Action.Walk;
-            case VoiceAction.WalkBackward: return robotPuPro.Action.WalkBackward;
-            case VoiceAction.TurnLeft: return robotPuPro.Action.TurnLeft;
-            case VoiceAction.TurnRight: return robotPuPro.Action.TurnRight;
-            case VoiceAction.Explore: return robotPuPro.Action.Explore;
-            case VoiceAction.Sit: return robotPuPro.Action.Sit;
-            case VoiceAction.Stand: return robotPuPro.Action.Stand;
-            case VoiceAction.Laugh: return robotPuPro.Action.Laugh;
-            case VoiceAction.Cry: return robotPuPro.Action.Cry;
-            case VoiceAction.Scream: return robotPuPro.Action.Scream;
-            case VoiceAction.Funny: return robotPuPro.Action.Funny;
-            case VoiceAction.Blink: return robotPuPro.Action.Blink;
-            case VoiceAction.Greet: return robotPuPro.Action.Greet;
-            case VoiceAction.Drive: return robotPuPro.Action.Drive;
-            case VoiceAction.Calibrate: return robotPuPro.Action.Calibrate;
-            case VoiceAction.Duck: return robotPuPro.Action.Duck;
-            default: return robotPuPro.Action.Rest;
-        }
-    }
-
-    function voiceActionSteps(token: number): number {
-        // Continuous motions run until the command stream stops (dead-man watchdog).
-        // One-shot motions run one cycle and then return to idle.
-        switch (token) {
-            case VoiceAction.Jump:
-            case VoiceAction.Kick:
-            case VoiceAction.Laugh:
-            case VoiceAction.Cry:
-            case VoiceAction.Scream:
-            case VoiceAction.Funny:
-            case VoiceAction.Blink:
-            case VoiceAction.Greet:
-            case VoiceAction.Wakeup:
-                return 1;
-            default:
-                return 0;
         }
     }
 
@@ -926,17 +788,7 @@ namespace robotPuCap {
     }
 
     /**
-     * Enable or disable the automatic voice-action engine.
-     * When enabled, CogniCap voice commands are mapped to robotPuPro.startAction(...)
-     * unless an onVoiceAction handler is registered for that token.
-     * @param enabled true to enable, false to disable
-     */
-    //% block="enable voice action engine %enabled"
-    //% group="Setup"
-    export function enableVoiceActionEngine(enabled: boolean): void {
-        voiceActionEngineEnabled = enabled;
-    }
-
+     * Store a reward for a state-action pair.
     /**
      * Store a reward for a state-action pair.
      * @param state the state index

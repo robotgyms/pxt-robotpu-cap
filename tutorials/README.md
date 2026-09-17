@@ -18,12 +18,11 @@ The tutorials are arranged from low-level I2C commands up to high-level behaviou
 | 8 | [Ball Following](ball-following.md) | ★★★★ | Follow a soccer ball on the floor. |
 | 9 | [Object Following](object-following.md) | ★★★★ | Hand-code the `followObject` feedback loop and tune it. |
 | 10 | [Soccer Game](soccer-game.md) | ★★★★ | Find the ball, align to the goal, and kick. |
-| 11 | [Voice Control](voice-control.md) | ★★★ | Wake the robot and drive it with WakeNet/MultiNet voice commands. |
+| 11 | [Voice Command](voice-command.md) | ★★★ | Map `VoiceAction` tokens to `robotPuPro` actions using `on voice command` events. |
 | 12 | [Personality with Q-Learning](personality-qtable.md) | ★★★★★ | Train a 64-state Q-table during rest to give Robot PU a personality. |
 | 13 | [QTable Follow and Kick](qtable-follow-kick-ball.md) | ★★★★★ | Use a Q-table to tweak feedback gains and switch mode for following and kicking the ball. |
 | 14 | [Walkie-Talkie](walkie-talkie.md) | ★★★★ | Follow a face, walk to keep a comfortable distance, and talk with 30 random conversation starters. |
 | 15 | [Sit, Watch, and Chat](sit-watch-chat.md) | ★★★ | Sit in place, look around for a face, and start a random conversation when it finds one. |
-| 16 | [Voice Command](voice-command.md) | ★★★ | Map the `VoiceAction` tokens to `robotPuPro` actions using `on voice command` events. |
 
 ## Requirements
 
