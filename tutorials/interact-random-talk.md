@@ -1,17 +1,17 @@
 ---
 name: Simple Interact Talk
-description: Make Robot PU interact with you and talk when it sees you. The talk content is randomly selected from a list.
+description: Make Robot PU interact with you and say a random line when it sees you. The talk content is randomly selected from a list.
 ---
 
 # Simple Interact Talk
 
-Make Robot PU track your face with its head, dance while it sees you, and occasionally start a conversation using one of 30 random conversation starters. When it loses you, the head slowly recentres and the robot starts exploring.
+Make Robot PU track your face with its head, dance while it sees you, and occasionally say a random line from a list of 30 conversation starters. When it loses you, the head slowly recentres and the robot starts exploring.
 
 ## Goal
 
 - Use the CogniCap face detector to find and track a person.
 - Move the head smoothly toward the face using `servoStep`.
-- Make the robot dance while tracking and randomly talk when it sees you.
+- Make the robot dance while tracking and randomly say a line when it sees you.
 - Pick sentences from a categorized list of 30 conversation starters.
 - Enter an `explore` behaviour when the face has been lost for a while.
 
@@ -19,7 +19,7 @@ Make Robot PU track your face with its head, dance while it sees you, and occasi
 
 1. `robotPuCap.startCogniCap()` starts the camera and the AI pipeline.
 2. `robotPuCap.enableDetections([...])` enables **only** face detection, saving ESP32-S3 processing power.
-3. `billy.voicePreset(...)` and a short start-up sound get the speech system ready.
+3. A short start-up sound gets the audio system ready.
 4. In the main loop:
    - When a face is detected, the robot softens its eyes, updates `smoothYaw` and `smoothPitch` with a low-pass filter, and reads the current head target angles.
    - `robotPuPro.dance()` keeps the body moving while the head tracks.
@@ -47,10 +47,10 @@ Make Robot PU track your face with its head, dance while it sees you, and occasi
 - `left eye bright`
 - `right eye bright`
 - `explore`
-- `billy voice preset`
-- `billy say`
 - `music play`
 - `music set volume`
+- `robotpuVoice set voice`
+- `robotpuVoice say`
 
 ## Example
 
@@ -128,8 +128,8 @@ robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 let trackSpeed = 0.1
 // tweak it for accelration speed, high value will cause oscillation
 let trackGain = 0.2
-billy.voicePreset(BillyVoicePreset.LittleRobot)
 music.play(music.createSoundExpression(WaveShape.Sine, 5000, 0, 255, 0, 500, SoundExpressionEffect.None, InterpolationCurve.Linear), music.PlaybackMode.UntilDone)
+robotpuVoice.setVoice(VoicePreset.RobotPU)
 robotPuPro.setServoTrim(0, -5)
 robotPuPro.setServoTrim(1, 0)
 robotPuPro.setServoTrim(2, -5)
@@ -160,8 +160,7 @@ basic.forever(function () {
         serial.writeLine("pitch:" + smoothPitch)
         robotPuPro.dance()
         if (randint(0, 30) == 1) {
-            music.setVolume(254)
-            billy.say(talkContent[randint(0, talkContent.length - 1)])
+            robotpuVoice.say(talkContent[randint(0, talkContent.length - 1)])
         }
     } else if (now - followLastTime < Math.min(detectionInterval, lostTimeout)) {
         // follow through
@@ -195,11 +194,11 @@ basic.forever(function () {
 - `trackSpeed` (0.1): the maximum step speed for the head. Higher values make the head move faster; lower values are smoother.
 - `decay` (0.95): how quickly the head drifts back to the centre when the face is briefly lost. Closer to 1 keeps the head pointed at the last seen position longer.
 - `lostTimeout` (3000 ms): time after which the head recentres, then later the robot starts exploring.
-- `randint(0, 30) == 1`: the random chance of speaking each loop. With `basic.pause(5)`, this means the robot may speak a few times per second when looking at you. Lower `30` to make it talk less often, or raise it to make it more chatty.
+- `randint(0, 30) == 1`: the random chance of saying a line each loop. With `basic.pause(5)`, this means the robot may speak a few times per second when looking at you. Lower `30` to make it talk less often, or raise it to make it more chatty.
 - Add more strings to `talkContent` to give the robot a wider vocabulary. You can also add more categories by inserting new `//` comments and string entries.
 
 ## What to try next
 
 - Track the **ball** or **goal** instead of the face by changing `CapObject.Face` to `CapObject.Ball` or `CapObject.Goal`.
 - Change `robotPuPro.dance()` to `robotPuPro.stand()` if you want the body still while tracking.
-- Use the `detectionInterval` to make the robot talk only when a new face is first detected, instead of randomly while tracking.
+- Use the `detectionInterval` to make the robot say a line only when a new face is first detected, instead of randomly while tracking.

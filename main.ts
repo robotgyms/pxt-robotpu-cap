@@ -282,7 +282,9 @@ namespace robotPuCap {
                         attentionCount[p.type] = (attentionCount[p.type] || 0) + add;
                     }
                 }
-                if (p.type < 0x20 && p.type != EVT_IDLE) {
+                // Deduplicate wake/service/status packets, but deliver every EVT_VOICE packet
+                // so the user's handler can refresh continuous actions (e.g. keep walking).
+                if (p.type < 0x20 && p.type != EVT_IDLE && p.type != EVT_VOICE) {
                     if (lastEventSeq[p.type] === p.seq) return;
                     lastEventSeq[p.type] = p.seq;
                 }

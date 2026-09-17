@@ -45,8 +45,8 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 | `Stop` | stop | `robotPuPro.start(robotPuPro.Action.Rest, 0)` |
 | `Jump` | jump | `robotPuPro.start(robotPuPro.Action.Jump, 1)` |
 | `Kick` | kick | `robotPuPro.start(robotPuPro.Action.Kick, 1)` |
-| `Sing` | sing | `billy.say("la la la")` / `music.play(...)` |
-| `Talk` | talk | `billy.say("hello")` |
+| `Sing` | sing | `robotpuVoice.sing("la la la")` |
+| `Talk` | talk | `robotpuVoice.say("hello")` |
 | `Dance` | dance | `robotPuPro.start(robotPuPro.Action.Dance, 0)` |
 | `Left` | left | `robotPuPro.start(robotPuPro.Action.TurnLeft, 0)` |
 | `Right` | right | `robotPuPro.start(robotPuPro.Action.TurnRight, 0)` |
@@ -78,7 +78,9 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 - `on any voice command`
 - `last voice command`
 - `start action %action steps %steps`
-- `billy say`
+- `robotpuVoice set voice`
+- `robotpuVoice say`
+- `robotpuVoice sing`
 
 ## Example: One handler per command
 
@@ -90,12 +92,10 @@ robotPuCap.enableVoiceCommands(true)
 
 robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Go, function () {
     robotPuPro.start(robotPuPro.Action.Walk, 0)
-    billy.say("going")
 })
 
 robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Stop, function () {
     robotPuPro.start(robotPuPro.Action.Rest, 0)
-    billy.say("stopped")
 })
 
 robotPuCap.onVoiceAction(robotPuCap.VoiceAction.TurnLeft, function () {
@@ -112,7 +112,6 @@ robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Walk, function () {
 
 robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Kick, function () {
     robotPuPro.start(robotPuPro.Action.Kick, 1)
-    billy.say("kick")
 })
 
 robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Sit, function () {
@@ -232,13 +231,12 @@ robotPuCap.onVoiceCommand(function () {
             break
         case robotPuCap.VoiceAction.Kick:
             robotPuPro.start(robotPuPro.Action.Kick, 1)
-            billy.say("kick")
             break
         case robotPuCap.VoiceAction.Sing:
-            billy.say("la la la")
+            robotpuVoice.sing("la la la")
             break
         case robotPuCap.VoiceAction.Talk:
-            billy.say("hello")
+            robotpuVoice.say("hello")
             break
         case robotPuCap.VoiceAction.Dance:
             robotPuPro.start(robotPuPro.Action.Dance, 0)
@@ -298,6 +296,6 @@ robotPuCap.onVoiceCommand(function () {
 
 ## What to try next
 
-- Add `billy.say` confirmations so the robot tells you what it is about to do.
+- Add `robotpuVoice.say` confirmations so the robot tells you what it is about to do.
 - Combine voice commands with object tracking: say `go` and have the robot walk toward the last detected ball.
 - Use `on any voice command` with the Q-table so positive or negative sentiment feedback changes what the robot does next.

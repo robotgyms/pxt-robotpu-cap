@@ -13,6 +13,8 @@ The `head track %object` block reads the yaw and pitch of the selected object fr
 - `start CogniCap`
 - `head track %object pitch gain %pitchSpeedGain yaw gain %yawSpeedGain`
 - `on %object detected`
+- `robotpuVoice set voice`
+- `robotpuVoice say`
 
 ## Example
 
@@ -55,9 +57,9 @@ robotPuCap.onObjectDetected(robotPuCap.CapObject.Face, function () {
 
 ## Directional voice feedback
 
-Use the face-tracking loop from [Object Tracking](object-tracking.md) and make the robot say where the face is.
+Use the face-tracking loop from [Object Tracking](object-tracking.md) and make the robot say where the face is using the Robot PU Voice extension.
 
-When the face is clearly off-centre, the robot speaks a matching phrase. Directional side changes are announced immediately; the centred "hello" phrase is rate-limited by a cooldown.
+When the face is clearly off-centre, the robot says a matching phrase using `robotpuVoice.say`. Directional side changes are spoken immediately; the centred "hello" phrase is rate-limited by a cooldown.
 
 ```typescript
 let currentPitch = 0
@@ -79,7 +81,7 @@ robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 let trackSpeed = 0.10
 // tweak it for accelration speed, high value will cause oscillation
 let trackGain = 0.2
-billy.voicePreset(BillyVoicePreset.LittleRobot)
+robotpuVoice.setVoice(VoicePreset.RobotPU)
 // main event loop
 basic.forever(function () {
     now2 = input.runningTime()
@@ -113,7 +115,7 @@ basic.forever(function () {
         }
         // Say it only if the phrase changed and either the cooldown passed or the face moved to a new side
         if (phrase != lastPhrase && (now2 - lastSay > sayCooldown || phrase != "hello I see you")) {
-            billy.say(phrase)
+            robotpuVoice.say(phrase)
             lastSay = now2
             lastPhrase = phrase
         }
@@ -130,6 +132,6 @@ basic.forever(function () {
 
 - `trackGain` (`0.2`) and `trackSpeed` (`0.1`) work the same as in the [Object Tracking](object-tracking.md) tutorial.
 - `15` and `20` are the yaw and pitch thresholds for calling the face off-centre. Increase them to reduce chatter; decrease them to react to smaller movements.
-- `sayCooldown` (`1500` ms) is the minimum time before the robot will say the centred "hello I see you" phrase. Directional side changes are spoken immediately. Increase it to make the centre greeting less frequent.
+- `sayCooldown` (`1500` ms) is the minimum time before the robot will say the centred "hello I see you" phrase. Directional side changes are spoken immediately. Increase it to make the centre phrase less frequent.
 - Change the strings in the `if / else` chain to make the robot say whatever you like.
 

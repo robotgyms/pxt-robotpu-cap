@@ -12,13 +12,13 @@ Make Robot PU sit in one place, scan for faces, and start a conversation when it
 - Put the robot in a sitting pose with `robotPuPro.sit()`.
 - Move the head randomly while searching: yaw between `-60` and `60`, pitch between `-60` and `15`.
 - Track a face with the head when one is detected.
-- Make the robot randomly talk from a list of 30 conversation starters.
+- Make the robot randomly say a phrase from a list of 30 conversation starters.
 
 ## How it works
 
 1. `robotPuCap.startCogniCap()` starts the camera and AI pipeline.
 2. `robotPuCap.enableDetections([...])` enables **only** face detection.
-3. `billy.voicePreset(...)` and a short start-up sound get the speech system ready.
+3. A short start-up sound gets the audio system ready.
 4. `robotPuPro.sit()` puts the body in a sitting pose before the loop begins.
 5. In the main loop:
    - `robotPuPro.servoTargets()` reads the current head angles (`index 4` is yaw, `index 5` is pitch).
@@ -27,7 +27,7 @@ Make Robot PU sit in one place, scan for faces, and start a conversation when it
    - Every loop there is a small random chance (`randint(0, 68) == 1`) the robot will pick a random phrase from `talkContent` and say it.
    - When no face is detected, the robot adds a small random step to the current head angles every 1.5-3 seconds, then clamps the result to `yaw [-60, 60]` and `pitch [-60, 15]`. It smooths the difference between the current position and the new target, then steps the head toward it.
    - The eyes blink while searching so you can tell it is active.
-6. The battery level is announced occasionally (`randint(0, 3000) == 1`) so you know the robot is still powered.
+6. The battery level is logged occasionally (`randint(0, 3000) == 1`) so you know the robot is still powered.
 
 ## Blocks used
 
@@ -44,10 +44,10 @@ Make Robot PU sit in one place, scan for faces, and start a conversation when it
 - `blink`
 - `left eye bright`
 - `right eye bright`
-- `billy voice preset`
-- `billy say`
 - `music set volume`
 - `music play`
+- `robotpuVoice set voice`
+- `robotpuVoice say`
 - `battery level`
 
 ## Example
@@ -126,8 +126,8 @@ robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 let trackSpeed = 0.1
 // tweak it for accelration speed, high value will cause oscillation
 let trackGain = 0.2
-billy.voicePreset(BillyVoicePreset.LittleRobot)
 music.play(music.createSoundExpression(WaveShape.Sine, 5000, 0, 255, 0, 500, SoundExpressionEffect.None, InterpolationCurve.Linear), music.PlaybackMode.UntilDone)
+robotpuVoice.setVoice(VoicePreset.RobotPU)
 robotPuPro.setServoTrim(0, -5)
 robotPuPro.setServoTrim(1, 0)
 robotPuPro.setServoTrim(2, -9)
@@ -156,8 +156,7 @@ basic.forever(function () {
         smoothPitch = 0.5 * smoothPitch + 0.5 * pitch
         // random talk
         if (randint(0, 68) == 1) {
-            music.setVolume(254)
-            billy.say(talkContent[randint(0, talkContent.length - 1)])
+            robotpuVoice.say(talkContent[randint(0, talkContent.length - 1)])
         }
         nextLook = now + lookInterval
         lookInterval = randint(1500, 3000)
@@ -184,7 +183,7 @@ basic.forever(function () {
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     if (randint(0, 3000) == 1) {
-        billy.say('battery ' + robotPuPro.batteryLevel() + " percent")
+        serial.writeLine('battery ' + robotPuPro.batteryLevel() + " percent")
     }
     basic.pause(5)
 })
@@ -196,8 +195,8 @@ basic.forever(function () {
 - `trackSpeed` (0.1): scales the servo step duration. Larger values make the head move slower (longer steps); smaller values make it faster and may overshoot.
 - `lookInterval` (2000 ms initial): the timer that picks the next random look position. The actual interval is randomized between `1500` and `3000` ms each time to make the scanning feel natural.
 - `randint(-15, 15)` and `randint(-10, 10)`: the random step sizes added to the current yaw and pitch while searching. Increase them to cover more ground faster; decrease them for slower, smoother scanning. The `Math.max / Math.min` clamps keep the head inside the `yaw [-60, 60]` and `pitch [-60, 15]` limits.
-- `randint(0, 68) == 1`: the random chance of speaking each loop. Raise `68` to talk less often.
-- `randint(0, 3000) == 1`: the random chance of announcing the battery level. Raise it to announce less often.
+- `randint(0, 68) == 1`: the random chance of saying a phrase each loop. Raise `68` to speak less often.
+- `randint(0, 3000) == 1`: the random chance of logging the battery level over serial. Raise it to log less often.
 - `0.5` in the smoothing filter: give more weight to the `old` value for smoother, slower motion; give more weight to the `new` value for snappier tracking.
 
 ## What to try next

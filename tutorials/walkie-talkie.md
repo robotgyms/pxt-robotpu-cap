@@ -1,25 +1,25 @@
 ---
 name: Walkie-Talkie
-description: Follow a face with the head, walk toward or away from it, and hold a conversation with random sentences.
+description: Follow a face with the head, walk toward or away from it, and say random sentences.
 ---
 
 # Walkie-Talkie
 
-Build a walkie-talkie robot that follows a person's face with its head, walks toward them or backs away to keep a comfortable distance, and starts random conversations. If the face is lost for a few seconds, it explores to find someone new to talk to.
+Build a walkie-talkie robot that follows a person's face with its head, walks toward them or backs away to keep a comfortable distance, and says random sentences. If the face is lost for a few seconds, it explores to find someone new.
 
 ## Goal
 
 - Track a face with both head and body movement.
 - Use the face's yaw to turn the robot toward the person.
 - Use the face's y-distance to walk forward when far away and back up when too close.
-- Speak a random phrase from a list of 30 conversation starters.
+- Say a random phrase from a list of 30 conversation starters.
 - Explore for a new face after being alone for a while.
 
 ## How it works
 
 1. `robotPuCap.startCogniCap()` starts the camera and AI pipeline.
 2. `robotPuCap.enableDetections([...])` enables **only** face detection to save processing power.
-3. `billy.voicePreset(...)` and a short start-up sound get the speech system ready.
+3. A short start-up sound gets the audio system ready.
 4. In the main loop:
    - When a face is detected, the robot dims its eyes, reads `yaw`, `pitch`, and `y_mm` from the face packet, and smooths the angles.
    - `walkSpeed` is computed from `(y_mm - 500) * 0.2` and clamped to `[-6, 6]`. The robot moves forward if the face is further than 500 mm, and backs up if it is closer.
@@ -32,7 +32,7 @@ Build a walkie-talkie robot that follows a person's face with its head, walks to
 5. If the face is lost for less than the larger of the last detection interval or `lostTimeout` (5000 ms), the smoothed angles, `walkSpeed`, and `walkTurn` decay by `0.95`, the eyes blink once, and the robot keeps walking.
 6. If the face is lost for longer than that but less than `2 * lostTimeout`, the head is recentred (`smoothYaw = 0`, `smoothPitch = 0`), the eyes blink twice, and the robot stands still.
 7. After `2 * lostTimeout`, the robot calls `robotPuPro.explore()` to look around and blinks five times to show it is searching.
-8. There is a small chance each loop (`randint(0, 3000) == 1`) that the robot announces the battery level.
+8. There is a small chance each loop (`randint(0, 3000) == 1`) that the robot logs the battery level.
 
 ## Blocks used
 
@@ -52,10 +52,10 @@ Build a walkie-talkie robot that follows a person's face with its head, walks to
 - `blink`
 - `left eye bright`
 - `right eye bright`
-- `billy voice preset`
-- `billy say`
 - `music set volume`
 - `music play`
+- `robotpuVoice set voice`
+- `robotpuVoice say`
 - `battery level`
 
 ## Example
@@ -134,8 +134,8 @@ robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 let trackSpeed = 0.1
 // tweak it for accelration speed, high value will cause oscillation
 let trackGain = 0.2
-billy.voicePreset(BillyVoicePreset.LittleRobot)
 music.play(music.createSoundExpression(WaveShape.Sine, 5000, 0, 255, 0, 500, SoundExpressionEffect.None, InterpolationCurve.Linear), music.PlaybackMode.UntilDone)
+robotpuVoice.setVoice(VoicePreset.RobotPU)
 robotPuPro.setServoTrim(0, -2)
 robotPuPro.setServoTrim(1, 0)
 robotPuPro.setServoTrim(2, -5)
@@ -174,8 +174,7 @@ basic.forever(function () {
         robotPuPro.walk(walkSpeed, walkTurn)
         smoothYaw -= walkTurn // compensate the walk turn angle
         if (randint(0, 68) == 1) {
-            music.setVolume(254)
-            billy.say(talkContent[randint(0, talkContent.length - 1)])
+            robotpuVoice.say(talkContent[randint(0, talkContent.length - 1)])
         }
     } else if (now - followLastTime < Math.max(detectionInterval, lostTimeout)) {
         // follow through
@@ -202,7 +201,7 @@ basic.forever(function () {
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     if (randint(0, 3000) == 1) {
-        billy.say('battery ' + robotPuPro.batteryLevel() + " percent")
+        serial.writeLine('battery ' + robotPuPro.batteryLevel() + " percent")
     }
     basic.pause(5)
 })
@@ -218,12 +217,12 @@ basic.forever(function () {
 - `smoothYaw -= walkTurn`: this compensates the head yaw target for the body turn so the eyes keep looking at the face while the robot turns. If the head lags behind or overshoots, adjust `walkTurn` gain or this compensation.
 - `decay` (0.95): how quickly the head and walking speeds decay when the face is briefly lost. Closer to 1 keeps the previous motion longer.
 - `lostTimeout` (5000 ms): the base time used for the lost-face phases. The first phase uses `max(detectionInterval, lostTimeout)` and the second phase uses `2 * lostTimeout`.
-- `randint(0, 68) == 1`: the random chance of speaking each loop. With `basic.pause(5)`, this means the robot may talk frequently. Lower 68 to make it less chatty, or raise it to make it talk more.
-- `randint(0, 3000) == 1`: the random chance of announcing battery level each loop. Raise it to announce less often.
+- `randint(0, 68) == 1`: the random chance of saying a phrase each loop. With `basic.pause(5)`, this means the robot may talk frequently. Lower 68 to make it less chatty, or raise it to make it talk more.
+- `randint(0, 3000) == 1`: the random chance of logging battery level each loop. Raise it to log less often.
 - Add more strings to `talkContent` to give the robot a wider vocabulary.
 
 ## What to try next
 
-- Change `CapObject.Face` to `CapObject.Ball` and make the robot follow and talk to a soccer ball.
+- Change `CapObject.Face` to `CapObject.Ball` and make the robot follow and talk about a soccer ball.
 - Add a waving arm gesture when a new face is first detected.
-- Use `onObjectDetected` to make the robot say a fixed greeting the first time it sees someone, then random sentences after that.
+- Use `onObjectDetected` to make the robot say a fixed greeting the first time it sees someone, then say random sentences after that.
