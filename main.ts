@@ -356,7 +356,7 @@ namespace robotPuCap {
         }
     }
 
-    // Voice command action engine: map I2C VoiceAction tokens to robotPuPro.startAction.
+    // Voice command action engine: map I2C VoiceAction tokens to robotPuPro.start.
     // Off by default so users are not surprised by automatic robot motion or sounds.
     // All voice actions must come from user code. There is no default engine.
 
