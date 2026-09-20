@@ -57,7 +57,7 @@ Because the Q-table has only 64 states, keep the state map small. You can add mo
 
 ## Training only during rest
 
-We only update the Q-table while `robotPuPro.mode()` is `Rest`. That way the robot is still and stable while it "thinks" about what it just experienced. After resting, the robot can use `best Q action` to act out its learned preferences.
+We only update the Q-table while the robot is resting, tracked with a `resting` variable that `act()` keeps up to date. That way the robot is still and stable while it "thinks" about what it just experienced. After resting, the robot can use `best Q action` to act out its learned preferences.
 
 ## Example
 
@@ -73,9 +73,12 @@ function stateId(): number {
     return s;
 }
 
+let resting = true;
+
 function act(action: number) {
+    resting = false;
     if (action == robotPuCap.QAction.Dance) {
-        robotPuPro.setModeVar(robotPuPro.Mode.Dance);
+        robotPuPro.start(robotPuPro.Action.Dance, 0);
     } else if (action == robotPuCap.QAction.Walk) {
         robotPuPro.walk(2, 0);
     } else if (action == robotPuCap.QAction.TurnLeft) {
@@ -89,14 +92,15 @@ function act(action: number) {
     } else if (action == robotPuCap.QAction.Approach) {
         robotPuPro.walk(2, 0);
     } else {
-        robotPuPro.setModeVar(robotPuPro.Mode.Rest);
+        robotPuPro.start(robotPuPro.Action.Rest, 0);
+        resting = true;
     }
 }
 
 basic.forever(function () {
     let s = stateId();
 
-    if (robotPuPro.mode() == robotPuPro.Mode.Rest) {
+    if (resting) {
         // Training phase: give rewards based on what you want the robot to learn.
         if (s & 1) {
             robotPuCap.setQValue(s, robotPuCap.QAction.Dance, 10);

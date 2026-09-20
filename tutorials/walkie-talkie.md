@@ -43,7 +43,7 @@ Build a walkie-talkie robot that follows a person's face with its head, walks to
 - `object pitch`
 - `object y`
 - `set servo trim`
-- `set mode`
+- `start action`
 - `servo step`
 - `servo targets`
 - `stand`
@@ -197,7 +197,7 @@ basic.forever(function () {
         robotPuPro.blink(5)
     }
     // Move head toward the object
-    robotPuPro.setMode(robotPuPro.Mode.API)
+    robotPuPro.start(robotPuPro.Action.API, 0)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     if (randint(0, 3000) == 1) {

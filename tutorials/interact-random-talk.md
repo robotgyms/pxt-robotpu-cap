@@ -38,7 +38,7 @@ Make Robot PU track your face with its head, dance while it sees you, and occasi
 - `object yaw`
 - `object pitch`
 - `set servo trim`
-- `set mode`
+- `start action`
 - `servo step`
 - `servo targets`
 - `stand`
@@ -181,7 +181,7 @@ basic.forever(function () {
         robotPuPro.blink(5)
     }
     // Move head toward the object
-    robotPuPro.setMode(robotPuPro.Mode.API)
+    robotPuPro.start(robotPuPro.Action.API, 0)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)

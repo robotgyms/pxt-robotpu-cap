@@ -37,7 +37,7 @@ Make Robot PU sit in one place, scan for faces, and start a conversation when it
 - `object yaw`
 - `object pitch`
 - `set servo trim`
-- `set mode`
+- `start action`
 - `servo step`
 - `servo targets`
 - `sit`
@@ -179,7 +179,7 @@ basic.forever(function () {
         robotPuPro.sit()
     }
     // Move head toward the target
-    robotPuPro.setMode(robotPuPro.Mode.API)
+    robotPuPro.start(robotPuPro.Action.API, 0)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     if (randint(0, 3000) == 1) {

@@ -66,7 +66,7 @@ basic.forever(function () {
     }
     //serial.writeLine("headTrim:" + smoothPitch * 0.1)
     robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch + 5)
-    robotPuPro.walkDo(followSpeed, followTurn)
+    robotPuPro.walk(followSpeed, followTurn)
     basic.pause(5)
 })
 ```
