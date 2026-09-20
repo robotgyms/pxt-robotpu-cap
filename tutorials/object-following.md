@@ -18,7 +18,7 @@ This program is the same logic as `robotPuCap.followObject()`, written out so ev
 8. Between `lostTimeout` and `1.5 * lostTimeout`, the robot backs up slowly (`followSpeed = -2`) to try to reacquire the object.
 9. After `1.5 * lostTimeout`, it calls `robotPuPro.explore()` to actively search for the object.
 10. `robotPuPro.setServoTrim(HeadPitch, smoothPitch + 10)` tilts the head to follow the object's vertical angle.
-11. `robotPuPro.walkDo(followSpeed, followTurn)` moves the robot. To scan while searching, uncomment the `searchForObject(...)` line in the loop.
+11. `robotPuPro.walk(followSpeed, followTurn)` moves the robot. To scan while searching, uncomment the `searchForObject(...)` line in the loop.
 
 The robot stops roughly `distance` millimetres from the object. A larger `distance` stops farther away; a smaller `distance` lets it get closer.
 
@@ -33,7 +33,7 @@ The robot stops roughly `distance` millimetres from the object. A larger `distan
 - `left eye bright`
 - `right eye bright`
 - `set servo trim`
-- `walkDo`
+- `walk`
 - `explore`
 
 ## Example
@@ -95,7 +95,7 @@ basic.forever(function () {
     }
     // serial.writeLine("headTrim:" + smoothPitch * 0.1)
     robotPuPro.setServoTrim(robotPuPro.ServoJoint.HeadPitch, smoothPitch + 10)
-    robotPuPro.walkDo(followSpeed, followTurn)
+    robotPuPro.walk(followSpeed, followTurn)
     basic.pause(5)
 })
 

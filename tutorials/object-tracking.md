@@ -14,7 +14,7 @@ Track any object the CogniCap camera can see while keeping the body still. The r
 - `robotPuPro.servoTargets()` returns the current servo positions; index `4` is head yaw and `5` is head pitch.
 - `trackGain` scales the angle into a target offset for the head.
 - `trackSpeed` turns the size of the angle into a servo step duration, so the head moves faster when the error is large (`Math.max(0.5, Math.abs(smoothYaw * trackSpeed))`).
-- `robotPuPro.setMode(robotPuPro.Mode.API)` puts the servos under API control before moving them.
+- `robotPuPro.start(robotPuPro.Action.API, 0)` puts the servos under API control before moving them.
 - If the object stays lost for `lostTimeout` ms, the tracked angle decays toward zero and the robot eventually `stand`s and blinks brighter to search.
 
 ## Blocks used
@@ -89,7 +89,7 @@ basic.forever(function () {
         robotPuPro.blink(5)
     }
     // Move head toward the object
-    robotPuPro.setMode(robotPuPro.Mode.API)
+    robotPuPro.start(robotPuPro.Action.API, 0)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)

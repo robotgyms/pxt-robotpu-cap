@@ -121,7 +121,7 @@ basic.forever(function () {
         }
     }
     // Move head toward the face
-    robotPuPro.setMode(robotPuPro.Mode.API)
+    robotPuPro.start(robotPuPro.Action.API, 0)
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)

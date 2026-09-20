@@ -155,7 +155,7 @@ robotPuCap.resetQTable();
 
 function doAttractAction(action: number) {
     if (action == robotPuCap.QAction.Dance) {
-        robotPuPro.setMode(robotPuPro.Mode.Dance);
+        robotPuPro.start(robotPuPro.Action.Dance, 0);
     } else if (action == robotPuCap.QAction.Walk) {
         robotPuPro.walk(2, 0);
     } else if (action == robotPuCap.QAction.TurnLeft) {
@@ -169,7 +169,7 @@ function doAttractAction(action: number) {
     } else if (action == robotPuCap.QAction.Approach) {
         robotPuPro.walk(2, 0);
     } else {
-        robotPuPro.setMode(robotPuPro.Mode.Rest);
+        robotPuPro.start(robotPuPro.Action.Rest, 0);
     }
 }
 

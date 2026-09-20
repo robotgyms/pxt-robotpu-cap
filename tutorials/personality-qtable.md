@@ -57,13 +57,14 @@ Because the Q-table has only 64 states, keep the state map small. You can add mo
 
 ## Training only during rest
 
-We only update the Q-table while `robotPuPro.mode()` is `Rest`. That way the robot is still and stable while it "thinks" about what it just experienced. After resting, the robot can use `best Q action` to act out its learned preferences.
+We only update the Q-table while the `resting` flag is true — the robot is in `Rest` then, still and stable while it "thinks" about what it just experienced. After resting, the robot can use `best Q action` to act out its learned preferences.
 
 ## Example
 
 ```typescript
 robotPuCap.startCogniCap();
 robotPuCap.resetQTable();
+let resting = true;
 
 function stateId(): number {
     let s = 0;
@@ -75,28 +76,35 @@ function stateId(): number {
 
 function act(action: number) {
     if (action == robotPuCap.QAction.Dance) {
-        robotPuPro.setModeVar(robotPuPro.Mode.Dance);
+        resting = false;
+        robotPuPro.start(robotPuPro.Action.Dance, 0);
     } else if (action == robotPuCap.QAction.Walk) {
+        resting = false;
         robotPuPro.walk(2, 0);
     } else if (action == robotPuCap.QAction.TurnLeft) {
+        resting = false;
         robotPuPro.walk(0, 1);
     } else if (action == robotPuCap.QAction.TurnRight) {
+        resting = false;
         robotPuPro.walk(0, -1);
     } else if (action == robotPuCap.QAction.Kick) {
+        resting = false;
         robotPuPro.kick();
     } else if (action == robotPuCap.QAction.Search) {
         robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
     } else if (action == robotPuCap.QAction.Approach) {
+        resting = false;
         robotPuPro.walk(2, 0);
     } else {
-        robotPuPro.setModeVar(robotPuPro.Mode.Rest);
+        resting = true;
+        robotPuPro.start(robotPuPro.Action.Rest, 0);
     }
 }
 
 basic.forever(function () {
     let s = stateId();
 
-    if (robotPuPro.mode() == robotPuPro.Mode.Rest) {
+    if (resting) {
         // Training phase: give rewards based on what you want the robot to learn.
         if (s & 1) {
             robotPuCap.setQValue(s, robotPuCap.QAction.Dance, 10);
