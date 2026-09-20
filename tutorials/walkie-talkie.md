@@ -43,7 +43,7 @@ Build a walkie-talkie robot that follows a person's face with its head, walks to
 - `object pitch`
 - `object y`
 - `set servo trim`
-- `set mode`
+- `start action`
 - `servo step`
 - `servo targets`
 - `stand`

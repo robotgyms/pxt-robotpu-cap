@@ -37,7 +37,7 @@ Make Robot PU sit in one place, scan for faces, and start a conversation when it
 - `object yaw`
 - `object pitch`
 - `set servo trim`
-- `set mode`
+- `start action`
 - `servo step`
 - `servo targets`
 - `sit`

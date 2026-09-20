@@ -38,7 +38,7 @@ Make Robot PU track your face with its head, dance while it sees you, and occasi
 - `object yaw`
 - `object pitch`
 - `set servo trim`
-- `set mode`
+- `start action`
 - `servo step`
 - `servo targets`
 - `stand`

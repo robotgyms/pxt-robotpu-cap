@@ -23,7 +23,7 @@ Track any object the CogniCap camera can see while keeping the body still. The r
 - `object detected`
 - `object yaw`
 - `object pitch`
-- `set mode`
+- `start action`
 - `servoTargets`
 - `servoStep`
 - `blink`
