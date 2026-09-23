@@ -27,7 +27,7 @@ CogniCap runs all the AI on its own ESP32-S3, so the micro:bit stays free to dri
 
 ### Not just for Robot PU
 
-CogniCap mounts with a **standard LEGO-compatible adaptor**, so it snaps onto LEGO Technic beams and custom builds. And because it talks plain I2C, **any robot driven by a micro:bit V2** gets the same vision, voice, and learning blocks — clip it onto a LEGO rover, a classroom build, or your own creation and it gets the same eyes, ears, and learning brain.
+CogniCap's base has **two standard adaptor holes** — snap it onto Robot PU's head, or onto LEGO studs on any Technic or custom build. And because it talks plain I2C, **any robot driven by a micro:bit V2** gets the same vision, voice, and learning blocks — clip it onto a LEGO rover, a classroom build, or your own creation and it gets the same eyes, ears, and learning brain.
 
 ## About Robot PU
 
@@ -44,7 +44,7 @@ CogniCap mounts with a **standard LEGO-compatible adaptor**, so it snaps onto LE
 
 ## Get started in 3 steps
 
-1. Snap CogniCap onto Robot PU and connect it to the I2C hub (see [CogniCap setup](tutorials/cognicap-setup.md)).
+1. Snap CogniCap's two base holes onto Robot PU's head and connect it to the I2C hub (see [CogniCap setup](tutorials/cognicap-setup.md)).
 2. In [MakeCode for micro:bit](https://makecode.microbit.org/), open **Extensions** and paste `https://github.com/robotgyms/pxt-robotpu-cap`.
 3. Add a `start CogniCap` block plus any tracking or voice block — flash, and PU sees the world.
 
