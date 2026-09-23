@@ -1,10 +1,10 @@
 # CogniCap — the AI Cap for Robot PU
 
-![CogniCap on Robot PU](assets/cognicap.jpeg)
-
 **Give your Robot PU sight, a voice, and a personality of its own.**
 
 CogniCap is an ESP32-S3 AI camera + microphone add-on that snaps onto Robot PU's head. With this MakeCode extension, your robot can see faces, chase a soccer ball, obey voice commands, and learn a personality from how you play with it — all with drag-and-drop blocks.
+
+![CogniCap on Robot PU](assets/cognicap.jpeg)
 
 **[Buy the Robot PU kit on Amazon →](https://www.amazon.com/Robot-Programmable-Interactive-Upgradable-Self-Balancing/dp/B0DR8RGVXN)** · **CogniCap: coming soon on Amazon** — [watch this repo](https://github.com/robotgyms/pxt-robotpu-cap) for launch updates
 
