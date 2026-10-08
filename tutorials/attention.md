@@ -1,11 +1,11 @@
 ---
 name: Attention
-description: React to the "p u" / "pew" attention prefix by standing up, tracking the speaker's face, and walking to face them at a comfortable distance.
+description: React to the "p u" / "pew" attention prefix by standing up, tracking the speaker's face, and walking to keep a comfortable distance.
 ---
 
 # Attention
 
-Say the robot's name — `p u` (or `pew`) — and Robot PU snaps to attention: it stands up, its eyes light up, it says "yes?", and its head locks onto your face. If your face drifts too far to one side it turns its body toward you, and it steps closer or backs away until your face is a comfortable size in the camera — then it just stands there, watching you.
+Say the robot's name — `p u` (or `pew`) — and Robot PU snaps to attention: it stands up, its eyes light up, it says "yes?", and its head locks onto your face. Then it turns and steps toward you — or backs away if you are too close — until you are at a comfortable distance, and just stands there, watching you.
 
 Keep saying `p u` while you move around and the robot will keep re-arming its attention, turning and walking to follow your face.
 
@@ -31,8 +31,8 @@ Token `30` has its own `VoiceAction` member — `attention` — so `on voice com
 - Catch token `30` with `on voice command attention`.
 - Play an alert reaction: stand up, bright eyes, and a "yes?" reply.
 - Track the speaker's face with the head for the length of the attention window (~10 s).
-- When the head yaw error grows too large (`|smoothYaw| > YAW_LIMIT`), turn the body toward the face so the head can re-centre.
-- Walk forward when the face box is too small (person too far) and backward when too big (person too close); `stand` and hold the pose when the size is in the sweet spot.
+- Follow the face with the body, the same way [Social Distance](social-distance.md) does: `object y` (mm) drives forward/back walking, `yaw` drives the turn, and `smoothYaw -= walkTurn` keeps the gaze steady while the body rotates.
+- Glide to a stop if the face drops out briefly, then stand and scan with `search for face`.
 - End attention the moment a real command arrives, so the command's action owns the servos.
 - Relax back to rest when the window expires.
 
@@ -40,16 +40,16 @@ Token `30` has its own `VoiceAction` member — `attention` — so `on voice com
 
 1. `start CogniCap`, `enable voice commands`, and `enable detections [face]` start the pipeline.
 2. `on wake word` flashes the eyes — the robot perks up before you even say its name.
-3. `on voice command attention` fires on token `30`. The handler sets `attentive = true`, pushes `attentiveUntil` 12 s into the future (a little longer than the 10 s command window), and plays the alert — including `robotPuPro.stand()` so the robot straightens up to look at you. Saying `p u` again re-arms the timer, matching the firmware.
+3. `on voice command attention` fires on token `30`. The handler sets `attentive = true`, pushes `attentiveUntil` 12 s into the future (a little longer than the 10 s command window), and plays the alert — including `start stand` so the robot straightens up to look at you. Saying `p u` again re-arms the timer, matching the firmware.
 4. `EVT_VOICE` packets are delivered on every poll — they are *not* deduplicated — so the same `p u` can fire the handler many times. A `lastAlert` cooldown makes the eyes-and-"yes?" reaction play only once every 3 s while the timer still re-arms.
-5. In `forever`, while `attentive` and inside the window, the robot runs in `API` action mode (which does nothing, so no behaviour fights for the servos):
+5. In `forever`, while `attentive` and inside the window, the robot runs in `API` action mode (which does nothing, so no behaviour fights for the servos) and follows the face like [Social Distance](social-distance.md):
    - **Head**: `object yaw` / `object pitch` are smoothed and `servo step` moves the head toward the face — same as [Object Tracking](object-tracking.md).
-   - **Turn**: when `|smoothYaw|` exceeds `YAW_LIMIT` the head alone can't keep up, so `walk(walkSpd, turnCmd)` rotates the body toward the face (`turnCmd = -smoothYaw * turnGain`, same sign convention as [Object Following](object-following.md)).
-   - **Distance**: `object height` gives the face box height in pixels. Below `FACE_MIN` the person is too far → `walkSpd` is positive; above `FACE_MAX` too close → negative. Inside the deadband `walkSpd` stays `0`.
-   - **Stand**: when both `turnCmd` and `walkSpd` are `0`, `robotPuPro.stand()` holds the robot still, standing and watching — the "paying attention" pose.
-6. Every `on voice command %action` handler sets `attentive = false` before starting its action — attention turns into action, and the command owns the servos again.
-7. When the window expires with no command, the robot dims its eyes and returns to `Rest`.
-8. Bonus: every `p u` packet also counts toward the built-in attention counters, so `attention state` bit 1 (voice) lights up and `attention reward` grows — see [Personality with Q-Learning](personality-qtable.md).
+   - **Distance**: `walkSpeed = (faceDist - COMFORT_DIST) * speedGain`, clamped to `−6..6`. Positive walks closer when you are far, negative backs up when you crowd it — the robot settles where `faceDist ≈ COMFORT_DIST`.
+   - **Turn**: `walkTurn` blends `smoothYaw * turnGain` with the previous turn (low-pass filter). The negative gain turns the body toward the face, and `smoothYaw -= walkTurn` compensates the head target so the eyes stay locked on you while the body rotates.
+6. If the face drops out for less than `lostTimeout` ms, the speeds and angles decay — the robot glides to a stop still looking where you were. Past that, it stops walking, stands, and runs `search for face` to scan for you.
+7. Every `on voice command %action` handler sets `attentive = false` before starting its action — attention turns into action, and the command owns the servos again.
+8. When the window expires with no command, the robot dims its eyes and returns to `Rest`.
+9. Bonus: every `p u` packet also counts toward the built-in attention counters, so `attention state` bit 1 (voice) lights up and `attention reward` grows — see [Personality with Q-Learning](personality-qtable.md).
 
 ## Blocks used
 
@@ -63,7 +63,8 @@ Token `30` has its own `VoiceAction` member — `attention` — so `on voice com
 - `object detected`
 - `object yaw`
 - `object pitch`
-- `object height`
+- `object y`
+- `search for face`
 - `start %action for %steps steps`
 - `servo targets`
 - `servo step`
@@ -79,9 +80,7 @@ Token `30` has its own `VoiceAction` member — `attention` — so `on voice com
 
 ```typescript
 const ATTENTION_MS = 12000   // stay alert a little longer than the 10 s command window
-const YAW_LIMIT = 25         // head yaw error (deg) before the body turns
-const FACE_MIN = 60          // face box height (px): below = too far, walk closer
-const FACE_MAX = 140         // face box height (px): above = too close, back up
+const COMFORT_DIST = 500     // mm — how close the robot likes to stand from you
 let attentive = false
 let tracking = false         // true while the head is under API control
 let attentiveUntil = 0
@@ -94,18 +93,21 @@ let smoothPitch = 0
 let smoothYaw = 0
 let pitch = 0
 let yaw = 0
-let faceH = 0
-let walkSpd = 0
-let turnCmd = 0
+let faceDist = 0
 let followLastTime = 0
 let now = 0
+let lostTimeout = 2000       // shorter than social-distance — attention is brief
+// speed decays fast, turn decays slower — it glides to a stop facing you
+let decay = 0.7
+let turnDecay = 0.9
+let speedGain = 0.2
+let turnGain = -0.2
 // tweak it for tracking speed, high value will cause oscillation
 let trackSpeed = 0.1
 // tweak it for accelration speed, high value will cause oscillation
 let trackGain = 0.2
-// body assist gains
-let turnGain = 0.04
-let walkSpeed = 2
+let walkSpeed = 0
+let walkTurn = 0
 
 robotPuCap.startCogniCap()
 robotPuCap.enableVoiceCommands(true)
@@ -160,8 +162,7 @@ robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Sit, function () {
 })
 
 // main loop: while the attention window is open, track the face with the
-// head, turn the body when the head can't keep up, and step to a
-// comfortable distance — stand and hold the pose when centred and in range
+// head and follow it with the body — settle at a comfortable distance
 basic.forever(function () {
     now = input.runningTime()
     if (attentive && now < attentiveUntil) {
@@ -178,39 +179,37 @@ basic.forever(function () {
             // soft light of eyes, and look at you
             robotPuPro.leftEyeBright(0.05)
             robotPuPro.rightEyeBright(0.05)
-            // get the angle to the face
+            // get the angle and distance to the face
             yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Face)
             pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Face)
-            faceH = robotPuCap.objectHeight(robotPuCap.CapObject.Face)
+            faceDist = robotPuCap.objectY(robotPuCap.CapObject.Face)
             // Smooth the measured angles
             smoothYaw = 0.5 * smoothYaw + 0.5 * yaw
             smoothPitch = 0.5 * smoothPitch + 0.5 * pitch
-            // body assist 1: if the head yaw error is too big, turn the body
-            // toward the face (negative turn gain, same as followObject)
-            turnCmd = 0
-            if (Math.abs(smoothYaw) > YAW_LIMIT) {
-                turnCmd = Math.max(-1, Math.min(1, -smoothYaw * turnGain))
-            }
-            // body assist 2: keep the face a comfortable size in the camera —
-            // too small means too far away, too big means too close
-            walkSpd = 0
-            if (faceH > 0 && faceH < FACE_MIN) {
-                walkSpd = walkSpeed
-            } else if (faceH > FACE_MAX) {
-                walkSpd = -walkSpeed
-            }
-            // move or hold the "paying attention" stand pose
-            if (walkSpd != 0 || turnCmd != 0) {
-                robotPuPro.walk(walkSpd, turnCmd)
-            } else {
-                robotPuPro.stand()
-            }
+            // follow like social-distance.md: distance drives forward/back,
+            // yaw drives the turn — settle where faceDist ~= COMFORT_DIST
+            walkSpeed = Math.max(-6, Math.min(6, (faceDist - COMFORT_DIST) * speedGain))
+            walkTurn = (walkTurn + Math.max(-1, Math.min(1, smoothYaw * turnGain))) * 0.5
+            robotPuPro.walk(walkSpeed, walkTurn)
+            // compensate the head yaw target so the gaze stays on the face
+            smoothYaw -= walkTurn
+        } else if (now - followLastTime < lostTimeout) {
+            // follow through briefly — glide to a stop while still looking
+            smoothYaw = smoothYaw * decay
+            smoothPitch = smoothPitch * decay
+            walkSpeed *= decay
+            walkTurn *= turnDecay
+            robotPuPro.walk(walkSpeed, walkTurn)
+            // eyes brighter
+            robotPuPro.blink(1)
         } else {
-            // no face: decay the lock and search with brighter eyes
-            smoothYaw = smoothYaw * 0.7
-            smoothPitch = smoothPitch * 0.7
-            robotPuPro.blink(2)
+            // face lost for good while still attentive: stop and scan the room
+            walkSpeed = 0
+            walkTurn = 0
             robotPuPro.stand()
+            robotPuCap.searchForObject(robotPuCap.CapObject.Face)
+            // eyes so bright to look for you
+            robotPuPro.blink(5)
         }
         // Read the current head position and add the offset
         targets = robotPuPro.servoTargets()
@@ -263,20 +262,20 @@ robotPuCap.onI2CMessage(16, function () {
 
 ## Tuning
 
-- `ATTENTION_MS` (12000): how long the robot keeps tracking after `p u`. The firmware's command window is 10 s; staying alert slightly longer means the eyes are still on you when your command arrives. Saying `p u` again re-arms it — that is what makes "keep saying p u" produce continuous following.
+- `ATTENTION_MS` (12000): how long the robot keeps following after `p u`. The firmware's command window is 10 s; staying alert slightly longer means the eyes are still on you when your command arrives. Saying `p u` again re-arms it — that is what makes "keep saying p u" produce continuous following.
 - `lastAlert` cooldown (3000 ms): the same token is delivered on every I2C poll, so without a cooldown the robot would say "yes?" on a loop. Lower it for a chattier alert, raise it to speak once per window.
-- `YAW_LIMIT` (25°): the head-yaw deadband. Below it only the head moves; above it the body turns. Lower it and the robot turns sooner (busier feet, steadier head); raise it for quieter feet.
-- `turnGain` (0.04): proportional turn command once past the deadband (`turnCmd = -smoothYaw * turnGain`, clamped to −1..1). The sign is the same convention as `followObject` — negative gain turns the body toward a positive yaw. Increase for sharper turns; too high oscillates.
-- `FACE_MIN` / `FACE_MAX` (60 / 140 px): the face-height deadband. Calibrate these for your camera — add `serial.writeLine("h=" + faceH)` inside the face branch, watch the numbers at your preferred distance, and set the band around them.
-- `walkSpeed` (2): fixed forward/back step speed, clamped by `walk` to −6..6. Keep it small — a face is close-range work.
+- `COMFORT_DIST` (500 mm): the distance the robot settles at. Raise it for a robot that keeps more space, lower it for a closer companion — see [Social Distance](social-distance.md) for a bigger bubble.
+- `speedGain` (0.2): multiplies the distance error `(faceDist - COMFORT_DIST)` into walk speed, clamped to `±6`. Lower it for a gentler approach.
+- `turnGain` (−0.2): turn strength from yaw error, smoothed by the `0.5` blend. The negative sign turns toward the face; raise the magnitude to rotate faster, lower it to reduce wobble.
+- `decay` (0.7) / `turnDecay` (0.9): the follow-through fade when the face drops out — speed falls faster than turn so it stops sliding but keeps facing you.
+- `lostTimeout` (2000 ms): how long the robot coasts before it stops and scans. Attention windows are short, so this is tighter than the 6000 ms used in [Social Distance](social-distance.md).
 - `trackGain` (0.2) and `trackSpeed` (0.1): same head-tracking gains as in [Object Tracking](object-tracking.md).
-- Add `attentive = false` to any new `on voice command %action` handler you register, or the tracking loop will keep fighting the action for the servos until the timer expires.
-- If the robot backs up instead of approaching (or vice versa), your camera may report size differently — check `faceH` over serial. You can also switch the distance test to `object y (mm)` like `followObject` does.
+- Add `attentive = false` to any new `on voice command %action` handler you register, or the follow loop will keep fighting the action for the servos until the timer expires.
+- If the robot backs up instead of approaching (or vice versa), check `object y` for your build with `serial.writeLine("d=" + faceDist)` — or switch the distance measure to `object height` (face box pixels) with a `FACE_MIN`/`FACE_MAX` deadband.
 
 ## What to try next
 
-- Greet instead of just standing and saying "yes?": run `robotPuPro.start(robotPuPro.Action.Greet, 1)` on token `30`, then start tracking once `is greet done` fires.
-- Use `object y (mm)` instead of `object height` for the distance band if you prefer real millimetres — the follow logic in [Object Following](object-following.md) works the same way.
-- Smooth the walk: replace the fixed `walkSpeed` with a proportional step like `Math.min(4, (FACE_MID - faceH) * 0.05)` so the robot creeps the last few centimetres instead of toggling.
+- Greet instead of just standing and saying "yes?": run `robotPuPro.start(robotPuPro.Action.Greet, 1)` on token `30`, then start following once `is greet done` fires.
+- Give it manners like [Social Distance](social-distance.md): say "too close!" when `faceDist` drops well under `COMFORT_DIST`.
 - Feed the attention into learning: each `p u` and face packet already increments the attention counters, so call `attention action` in a slow loop and let the Q-table learn which of its actions earns the most `p u`s — see [Personality with Q-Learning](personality-qtable.md).
 - Combine with the `moving` flag pattern from [Voice and Eye](voice-eye.md) so every locomotion command suspends attention cleanly.
