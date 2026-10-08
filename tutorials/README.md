@@ -24,6 +24,7 @@ The tutorials are arranged from low-level I2C commands up to high-level behaviou
 | 14 | [Walkie-Talkie](walkie-talkie.md) | ★★★★ | Follow a face, walk to keep a comfortable distance, and talk with 30 random conversation starters. |
 | 15 | [Sit, Watch, and Chat](sit-watch-chat.md) | ★★★ | Sit in place, look around for a face, and start a random conversation when it finds one. |
 | 16 | [Attention](attention.md) | ★★★ | React to the `p u` / `pew` attention prefix (token 30) by standing up, tracking the speaker's face, and walking to face them at a comfortable distance. |
+| 17 | [Social Distance](social-distance.md) | ★★★★ | Follow a face while keeping a one-metre bubble — step closer when far, back away when too close, and complain about it. |
 
 ## Requirements
 
