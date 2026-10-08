@@ -2,7 +2,7 @@
  * CogniCap add-on for Robot PU.
  * Adds ESP32-S3 based AI vision, voice control, Q-table RL, and high-level tracking/soccer helpers.
  */
-//% weight=49 color=#9e2896 icon="\uf06e"
+//% weight=100 color=#9e2896 icon="\uf06e"
 //% block="CogniCap"
 //% groups='["Setup", "Vision", "Voice", "Action", "AI", "I2C Callbacks"]'
 //% helpUrl="https://robotgyms.com/pu/cognicap"
@@ -151,7 +151,9 @@ namespace robotPuCap {
         //% block="calibrate"
         Calibrate = 28,
         //% block="duck"
-        Duck = 29
+        Duck = 29,
+        //% block="attention"
+        Attention = 30
     }
 
     /**
@@ -699,7 +701,7 @@ namespace robotPuCap {
         "", "rest", "go", "back", "stop", "jump", "kick", "sing", "talk", "dance",
         "left", "right", "straight", "wakeup", "walk", "walk backward", "turn left",
         "turn right", "explore", "sit", "stand", "laugh", "cry", "scream", "funny",
-        "blink", "greet", "drive", "calibrate", "duck"
+        "blink", "greet", "drive", "calibrate", "duck", "attention"
     ];
 
     // Sentiment / feedback token name table

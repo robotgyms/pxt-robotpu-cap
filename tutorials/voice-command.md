@@ -68,6 +68,7 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 | `Drive` | drive | `robotPuPro.start(robotPuPro.Action.Drive, 0)` |
 | `Calibrate` | calibrate | `robotPuPro.start(robotPuPro.Action.Calibrate, 0)` |
 | `Duck` | duck | `robotPuPro.start(robotPuPro.Action.Duck, 0)` |
+| `Attention` | p u / pew | attention prefix — play an alert behaviour (see [Attention](attention.md)) |
 
 ## Blocks used
 
@@ -194,7 +195,7 @@ robotPuCap.onVoiceCommand(function () {
 })
 ```
 
-## Example: All 29 voice commands in one handler
+## Example: All 30 voice tokens in one handler
 
 This `on any voice command` example maps **every** supported `VoiceAction` token to a `robotPuPro` action. It uses a `switch` statement in TypeScript.
 
@@ -277,6 +278,11 @@ robotPuCap.onVoiceCommand(function () {
             break
         case robotPuCap.VoiceAction.Duck:
             robotPuPro.start(robotPuPro.Action.Duck, 0)
+            break
+        case robotPuCap.VoiceAction.Attention:
+            // "p u" / "pew" attention prefix — play an alert
+            robotPuPro.leftEyeBright(0.5)
+            robotPuPro.rightEyeBright(0.5)
             break
         default:
             robotPuPro.start(robotPuPro.Action.Blink, 1)

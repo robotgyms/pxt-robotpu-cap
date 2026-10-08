@@ -105,7 +105,7 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 - `latest voice command` — the recognised command string, when available.
 
 The `VoiceAction` enum contains the words the ESP32-S3 can learn with MultiNet:
-`rest`, `go`, `back`, `stop`, `jump`, `kick`, `sing`, `talk`, `dance`, `left`, `right`, `straight`, `wake up`, `walk`, `walk backward`, `turn left`, `turn right`, `explore`, `sit`, `stand`, `laugh`, `cry`, `scream`, `funny`, `blink`, `greet`, `drive`, `calibrate`, `duck`.
+`rest`, `go`, `back`, `stop`, `jump`, `kick`, `sing`, `talk`, `dance`, `left`, `right`, `straight`, `wake up`, `walk`, `walk backward`, `turn left`, `turn right`, `explore`, `sit`, `stand`, `laugh`, `cry`, `scream`, `funny`, `blink`, `greet`, `drive`, `calibrate`, `duck`, plus `attention` (the `p u` / `pew` attention prefix, token 30).
 
 ### Learning
 
