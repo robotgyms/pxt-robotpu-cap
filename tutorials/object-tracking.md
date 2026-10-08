@@ -86,7 +86,7 @@ basic.forever(function () {
     } else {
         robotPuPro.stand()
         // eyes so bright to look for you
-        robotPuPro.blink(5)
+        robotPuPro.blink(3)
     }
     // Move head toward the object
     robotPuPro.start(robotPuPro.Action.API, 0)
@@ -94,8 +94,6 @@ basic.forever(function () {
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)
 })
-
-
 ```
 
 ## Changing the target
