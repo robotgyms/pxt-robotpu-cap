@@ -149,6 +149,12 @@ The micro:bit uses `count` as an action token whenever `isActionToken(type)` is 
 | `Drive`       | `27`   | drive             |
 | `Calibrate`   | `28`   | calibrate         |
 | `Duck`        | `29`   | duck              |
+| `Attention`   | `30`   | attention         |
+| `Record`      | `32`   | record            |
+| `Video`       | `33`   | video             |
+| `Photo`       | `34`   | photo             |
+
+> `Attention` (`30`) is the "p u" / "pew" attention prefix — both phrases forward action `30`. `Record`, `Video` and `Photo` also run the capture on the cap itself; the token is still forwarded so the micro:bit can react.
 
 > Sentiment / feedback tokens are defined separately in §5.3.
 

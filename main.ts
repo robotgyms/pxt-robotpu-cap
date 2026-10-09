@@ -153,7 +153,13 @@ namespace robotPuCap {
         //% block="duck"
         Duck = 29,
         //% block="attention"
-        Attention = 30
+        Attention = 30,
+        //% block="record"
+        Record = 32,
+        //% block="video"
+        Video = 33,
+        //% block="photo"
+        Photo = 34
     }
 
     /**
@@ -701,7 +707,8 @@ namespace robotPuCap {
         "", "rest", "go", "back", "stop", "jump", "kick", "sing", "talk", "dance",
         "left", "right", "straight", "wakeup", "walk", "walk backward", "turn left",
         "turn right", "explore", "sit", "stand", "laugh", "cry", "scream", "funny",
-        "blink", "greet", "drive", "calibrate", "duck", "attention"
+        "blink", "greet", "drive", "calibrate", "duck", "attention", "",
+        "record", "video", "photo"
     ];
 
     // Sentiment / feedback token name table

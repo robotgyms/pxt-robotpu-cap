@@ -1,11 +1,11 @@
 ---
 name: Attention
-description: React to the "p u" / "pew" attention prefix by standing up and tracking the speaker's face, scanning left and right when no face is visible.
+description: React to the "p u" / "pew" attention prefix by standing up and tracking the speaker's face, then turning any real command into an action.
 ---
 
 # Attention
 
-Say the robot's name — `p u` (or `pew`) — and Robot PU snaps to attention: it stands up, its eyes light up, it says "yes?", and its head locks onto your face. If it can't see you, it slowly sweeps its head left and right until it finds someone.
+Say the robot's name — `p u` (or `pew`) — and Robot PU snaps to attention: it stands up, its eyes light up, it says "yes?", and its head locks onto your face. If it can't see you, it keeps its head up and its eyes bright while it looks.
 
 Keep saying `p u` and the robot stays attentive. Give it a real command — `walk`, `dance`, `sit` — and attention turns into action.
 
@@ -22,31 +22,29 @@ The ESP32-S3 gates commands with a two-step attention sequence so ambient speech
 
 1. **Wake** — the wake word (or level-pattern fallback) opens a 10 second command window. A wake event arrives over I2C as an `EVT_WAKE` (`0x11`) packet, which fires `on wake word`.
 2. **Prefix** — saying `p u` (or `pew`) inside the window sets `prefix_heard` on the CogniCap and re-arms the window for another 10 seconds. The prefix is forwarded over I2C as an `EVT_VOICE` (`0x10`) packet with **token `30`**. This is the moment your code can play an attention behaviour.
-3. **Command** — the next phrase inside the window is accepted, forwarded as its normal action token (`1`–`29`), and the window closes. Phrases heard without the prefix are ignored by the firmware.
+3. **Command** — the next phrase inside the window is accepted, forwarded as its normal action token (`1`–`34`), and the window closes. Phrases heard without the prefix are ignored by the firmware. Tokens `32`–`34` (`record`, `video`, `photo`) also trigger the capture on the cap itself — the token reaches the micro:bit so your code can react too.
 
-Token `30` has its own `VoiceAction` member — `attention` — so `on voice command attention` fires exactly when the prefix is heard. (Alternatives: catch it in `on any voice command` with `last voice command == 30`, or raw with `on I2C message type 16` + `last action token`.)
+Token `30` has its own `VoiceAction` member — `attention` — so a single `on any voice command` handler can catch it by checking `last voice command`. (Alternatives: a dedicated `on voice command attention` handler, or raw `on I2C message type 16` + `last action token`.)
 
 ## Goal
 
-- Catch token `30` with `on voice command attention`.
+- Catch every voice token with one `on any voice command` handler and dispatch on `last voice command`.
 - Play an alert reaction: stand up, bright eyes, and a "yes?" reply.
-- Track the speaker's face with the head for the length of the attention window (~10 s).
-- When no face is visible, sweep the head left and right slowly with `search for face`.
+- Track the speaker's face with the head while attention lasts.
+- When no face is visible, hold the head steady and brighten the eyes while it keeps looking.
 - End attention the moment a real command arrives, so the command's action owns the servos.
-- Relax back to rest when the window expires.
 
 ## How the code works
 
 1. `start CogniCap`, `enable voice commands`, and `enable detections [face]` start the pipeline.
 2. `on wake word` flashes the eyes — the robot perks up before you even say its name.
-3. `on voice command attention` fires on token `30`. The handler sets `attentive = true`, pushes `attentiveUntil` 12 s into the future (a little longer than the 10 s command window), and plays the alert — including `start stand` so the robot straightens up to look at you. Saying `p u` again re-arms the timer, matching the firmware.
-4. `EVT_VOICE` packets are delivered on every poll — they are *not* deduplicated — so the same `p u` can fire the handler many times. A `lastAlert` cooldown makes the eyes-and-"yes?" reaction play only once every 3 s while the timer still re-arms.
-5. In `forever`, while `attentive` and inside the window, the robot runs in `API` action mode (which does nothing, so no behaviour fights for the servos):
-   - **Stand**: `robotPuPro.stand()` runs every iteration to hold the standing pose — the body never walks.
+3. `VoiceAction` tokens are **not** the same numbers as `robotPuPro.Action` values — voice `walk` is `14` but `Action.Walk` is `10`, voice `stop` is `4` but `Action.Kick` is `4`. So three dictionaries — `voiceAction`, `voiceSteps`, `voicePhrase` — translate each command token into the action to run, how many steps it takes, and the phrase to say. Never feed `last voice command` straight into `start()`.
+4. `on any voice command` fires for every voice token (it is skipped only for tokens that have a dedicated `on voice command %action` handler, and this example registers none). When `last voice command` is `attention` (token `30`), it sets `attentive = true` and plays the alert — including `start stand` so the robot straightens up to look at you, and `say` reading the reply from `voicePhrase[attention]`. Attention lasts until a real command arrives — the firmware's 10 s window closes on its own, so the next command needs a fresh wake + `p u` anyway.
+5. Every handler call first resets the control offsets to zero — leftover lean/turn offsets from a previous action can tip the robot over when the next one starts. `EVT_VOICE` packets are delivered on every poll and are *not* deduplicated, so a repeated token simply re-runs its action and phrase — harmless for continuous actions like walking.
+6. Any other token sets `attentive = false` — attention turns into action — then the dictionaries decide which action runs and what the robot says. Tokens with a phrase but no action (`record`, `video`, `photo` — the cap does the recording itself) just get the spoken reply, and tokens with neither entry are ignored, so an unmapped phrase like `sing` can't confuse the action state.
+7. In `forever`, while `attentive`, the robot runs in `API` action mode (which does nothing, so no behaviour fights for the servos):
    - **Face found**: `object yaw` / `object pitch` are smoothed and `servo step` moves the head toward the face — same as [Object Tracking](object-tracking.md).
-   - **No face**: the smoothed angles decay and `search for face` sweeps the head through its scan pattern — slowly looking left and right until a face reappears.
-6. Every `on voice command %action` handler sets `attentive = false` before starting its action — attention turns into action, and the command owns the servos again.
-7. When the window expires with no command, the robot dims its eyes and returns to `Rest`.
+   - **No face**: the smoothed angles decay back to centre and the eyes brighten the longer the face is gone — the robot keeps looking without wandering off.
 8. Bonus: every `p u` packet also counts toward the built-in attention counters, so `attention state` bit 1 (voice) lights up and `attention reward` grows — see [Personality with Q-Learning](personality-qtable.md).
 
 ## Blocks used
@@ -55,13 +53,13 @@ Token `30` has its own `VoiceAction` member — `attention` — so `on voice com
 - `enable voice commands`
 - `enable detections`
 - `on wake word`
-- `on voice command %action`
-- `on any voice command` + `last voice command` (alternative)
+- `on any voice command` + `last voice command`
+- `on voice command %action` (alternative)
 - `last action token` (raw alternative)
 - `object detected`
 - `object yaw`
 - `object pitch`
-- `search for face`
+- `set control offsets`
 - `start %action for %steps steps`
 - `servo targets`
 - `servo step`
@@ -88,48 +86,71 @@ robotpuVoice.setVoice(VoicePreset.RobotPU)
 
 // wake word — eyes flash even before "p u" is heard
 robotPuCap.onWakeWord(function () {
-    robotPuPro.leftEyeBright(0.3)
-    robotPuPro.rightEyeBright(0.3)
-    basic.showIcon(IconNames.Surprised)
+    robotPuPro.leftEyeBright(0.1)
+    robotPuPro.rightEyeBright(0.1)
 })
+// VoiceAction tokens are NOT the same numbers as robotPuPro.Action
+// (voice "walk" is 14, Action.Walk is 10), so dictionaries translate
+// each voice token into the action, step count and phrase to use.
+// Add a command by adding one row to each dictionary.
+let voiceAction: number[] = []
+let voiceSteps: number[] = []
+let voicePhrase: string[] = []
+// the attention prefix gets a phrase too — say() reads it from the dictionary
+voicePhrase[robotPuCap.VoiceAction.Attention] = "Yes?"
+voiceAction[robotPuCap.VoiceAction.Walk] = robotPuPro.Action.Walk
+voicePhrase[robotPuCap.VoiceAction.Walk] = "Ok! I am going."
+voiceAction[robotPuCap.VoiceAction.Back] = robotPuPro.Action.WalkBackward
+voicePhrase[robotPuCap.VoiceAction.Back] = "Watch my six!"
+voiceAction[robotPuCap.VoiceAction.Left] = robotPuPro.Action.TurnLeft
+voicePhrase[robotPuCap.VoiceAction.Left] = "Turn Left!"
+voiceAction[robotPuCap.VoiceAction.Right] = robotPuPro.Action.TurnRight
+voicePhrase[robotPuCap.VoiceAction.Right] = "Turn Right!"
+voiceAction[robotPuCap.VoiceAction.Dance] = robotPuPro.Action.Dance
+voicePhrase[robotPuCap.VoiceAction.Dance] = "Dance is fun"
+voiceAction[robotPuCap.VoiceAction.Jump] = robotPuPro.Action.Jump
+voicePhrase[robotPuCap.VoiceAction.Jump] = "I could reach the moon!"
+voiceAction[robotPuCap.VoiceAction.Kick] = robotPuPro.Action.Kick
+voiceSteps[robotPuCap.VoiceAction.Kick] = 1
+voicePhrase[robotPuCap.VoiceAction.Kick] = "Kick it hard!"
+voiceAction[robotPuCap.VoiceAction.Sit] = robotPuPro.Action.Sit
+voicePhrase[robotPuCap.VoiceAction.Sit] = "I have no chair to sit."
+voiceAction[robotPuCap.VoiceAction.Stand] = robotPuPro.Action.Stand
+voicePhrase[robotPuCap.VoiceAction.Stand] = "I am taller now!"
+voiceAction[robotPuCap.VoiceAction.Stop] = robotPuPro.Action.Rest
+voicePhrase[robotPuCap.VoiceAction.Stop] = "I am so tired!"
+// record, video and photo run on the cap itself — phrase only, no action
+voicePhrase[robotPuCap.VoiceAction.Record] = "Recording!"
+voicePhrase[robotPuCap.VoiceAction.Video] = "Rolling!"
+voicePhrase[robotPuCap.VoiceAction.Photo] = "Cheese!"
+
 let attentive = false
-// "p u" / "pew" arrives as token 30 — the attention prefix
-robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Attention, function () {
-    attentive = true
-    // the token may repeat in the packet stream — alert once per 3 s
-    robotPuPro.leftEyeBright(0.05)
-    robotPuPro.rightEyeBright(0.05)
-    // stand up to pay attention
-    robotPuPro.start(robotPuPro.Action.Stand, 0)
-    robotpuVoice.say("Yes?")
+let cmd = 0
+// one handler catches every voice token — "p u" / "pew" arrives as token 30
+robotPuCap.onVoiceCommand(function () {
+    cmd = robotPuCap.lastVoiceCommand()
+    // reset control vector to 0 to avoid falling
+    robotPuPro.setControlOffsets([0, 1, 2, 3, 4, 5], [0, 0, 0, 0, 0, 0])
+    if (cmd == robotPuCap.VoiceAction.Attention) {
+        attentive = true
+        robotPuPro.leftEyeBright(0.05)
+        robotPuPro.rightEyeBright(0.05)
+        // stand up to pay attention
+        robotPuPro.start(robotPuPro.Action.Stand, 0)
+        robotpuVoice.say(voicePhrase[cmd])
+    } else {
+        // a real command after "p u" ends attention and owns the servos
+        attentive = false
+        if (voiceAction[cmd] !== undefined) {
+            robotPuPro.start(voiceAction[cmd], voiceSteps[cmd] || 0)
+        }
+        // capture tokens have a phrase but no action — just reply
+        if (voicePhrase[cmd] !== undefined) {
+            robotpuVoice.say(voicePhrase[cmd])
+        }
+    }
 })
 
-// a real command after "p u" ends attention and runs its action
-robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Walk, function () {
-    attentive = false
-    robotPuPro.start(robotPuPro.Action.Walk, 0)
-    robotpuVoice.say("Ok! I am going.")
-})
-robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Dance, function () {
-    attentive = false
-    robotPuPro.start(robotPuPro.Action.Dance, 0)
-    robotpuVoice.say("Dance is fun")
-})
-robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Kick, function () {
-    attentive = false
-    robotPuPro.start(robotPuPro.Action.Kick, 1)
-    robotpuVoice.say("Kick it hard!")
-})
-robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Stop, function () {
-    attentive = false
-    robotPuPro.start(robotPuPro.Action.Rest, 0)
-    robotpuVoice.say("I am so tired!")
-})
-robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Sit, function () {
-    attentive = false
-    robotPuPro.start(robotPuPro.Action.Sit, 0)
-    robotpuVoice.say("I have no chair.")
-})
 
 let currentPitch = 0
 let currentYaw = 0
@@ -143,9 +164,6 @@ let followLastTime = 0
 let now = 0
 let lostTimeout = 1000
 let decay = 0.7
-robotPuCap.startCogniCap()
-// turn on face detection only
-robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 // tweak it for tracking speed, high value will cause oscillation
 let trackSpeed = 0.10
 // tweak it for accelration speed, high value will cause oscillation
@@ -154,6 +172,8 @@ let trackGain = 0.2
 basic.forever(function () {
     if (attentive) {
         now = input.runningTime()
+        // API mode does nothing, so no behaviour fights for the servos
+        robotPuPro.start(robotPuPro.Action.API, 0)
         // Track the chosen object if it is visible
         if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
             detectionInterval = now - followLastTime
@@ -185,12 +205,10 @@ basic.forever(function () {
             // eyes much brighter
             robotPuPro.blink(2)
         } else {
-            robotPuPro.stand()
             // eyes so bright to look for you
             robotPuPro.blink(3)
         }
         // Move head toward the object
-        robotPuPro.start(robotPuPro.Action.API, 0)
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(1, Math.abs(smoothYaw * trackSpeed)))
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(1, Math.abs(smoothPitch * trackSpeed)))
         basic.pause(10)
@@ -203,15 +221,16 @@ basic.forever(function () {
 
 ## Alternative: catch the token another way
 
-`on any voice command` fires for tokens with no dedicated `on voice command %action` handler — if you don't register `attention`, token `30` lands here and you can check `last voice command`:
+Instead of one `on any voice command` handler plus dictionaries, you can register a dedicated `on voice command %action` block per token — more blocks, but each command gets its own hat:
 
 ```typescript
-robotPuCap.onVoiceCommand(function () {
-    if (robotPuCap.lastVoiceCommand() == 30) {
-        // "p u" heard — same attention logic as above
-    }
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Attention, function () {
+    attentive = true
+    // same attention logic as above
 })
 ```
+
+Note that `on any voice command` is a *fallback*: it fires only for tokens with no dedicated `on voice command %action` handler. If you register `attention` this way, token `30` bypasses the shared handler and reaches only the dedicated block.
 
 Or go raw: `on I2C message type 16` (`0x10` = `EVT_VOICE`) fires for **every** voice packet — including tokens that already have a dedicated handler — so filter inside it. `last action token` reads the token byte from the latest packet:
 
@@ -227,16 +246,16 @@ robotPuCap.onI2CMessage(16, function () {
 
 ## Tuning
 
-- `ATTENTION_MS` (12000): how long the robot keeps tracking after `p u`. The firmware's command window is 10 s; staying alert slightly longer means the eyes are still on you when your command arrives. Saying `p u` again re-arms it — that is what makes "keep saying p u" produce continuous attention.
-- `lastAlert` cooldown (3000 ms): the same token is delivered on every I2C poll, so without a cooldown the robot would say "yes?" on a loop. Lower it for a chattier alert, raise it to speak once per window.
 - `trackGain` (0.2) and `trackSpeed` (0.1): same head-tracking gains as in [Object Tracking](object-tracking.md) — raise `trackGain` for a snappier head, lower it to stop oscillation.
-- The no-face branch decays `smoothYaw`/`smoothPitch` by `0.7` while `search for face` sweeps — raise the decay factor toward `0.9` to keep looking in the last direction longer before the scan takes over.
-- `search for face` uses the built-in scan pattern; make the sweep faster by calling it less often (e.g. every other loop) or slower by wrapping it in your own counter.
-- Add `attentive = false` to any new `on voice command %action` handler you register, or the tracking loop will keep fighting the action for the head servos until the timer expires.
+- `decay` (0.7): how fast the smoothed angles fade during the no-face follow-through — raise toward `0.9` to keep looking in the last direction longer.
+- `lostTimeout` (1000 ms): how long the robot follows through and then holds before giving the eyes their brightest "looking for you" blink.
+- Repeated voice packets re-fire the handler. If the robot repeats its phrase too often while a token is streaming in, add a cooldown like `if (input.runningTime() - lastCmdTime > 3000)` around the `else` branch.
+- The control-offset reset runs on every voice token — if you add a handler that intentionally sets offsets (e.g. a lean), reset them again before the next command or the robot may fall.
+- Add a new voice command by adding one row to `voiceAction`, `voiceSteps` (optional — defaults to `0` = run forever), and `voicePhrase` — the shared `else` branch already clears `attentive`. If you register a dedicated `on voice command %action` handler for a token instead, set `attentive = false` there too, or the tracking loop will keep fighting the action for the head servos.
 
 ## What to try next
 
-- Make the robot come to you: swap the `stand()` for the follow loop from [Social Distance](social-distance.md) — `walk((faceDist - COMFORT_DIST) * speedGain, walkTurn)` — so attention makes it approach instead of just watch.
+- Make the robot come to you: swap the head tracking in `forever` for the follow loop from [Social Distance](social-distance.md) — `walk((faceDist - COMFORT_DIST) * speedGain, walkTurn)` — so attention makes it approach instead of just watch.
 - Greet instead of just standing and saying "yes?": run `robotPuPro.start(robotPuPro.Action.Greet, 1)` on token `30`, then start tracking once `is greet done` fires.
 - Feed the attention into learning: each `p u` and face packet already increments the attention counters, so call `attention action` in a slow loop and let the Q-table learn which of its actions earns the most `p u`s — see [Personality with Q-Learning](personality-qtable.md).
 - Combine with the `moving` flag pattern from [Voice and Eye](voice-eye.md) so every locomotion command suspends attention cleanly.
