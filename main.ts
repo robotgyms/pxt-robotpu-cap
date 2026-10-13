@@ -228,12 +228,12 @@ namespace robotPuCap {
         }
         init() {
             // Open all 4 channels on the TCA9546A I2C mux
-            pins.i2cWriteNumber(MUX_ADDR, 0x0F, NumberFormat.Int8LE, false);
+            robotPuPro.i2cWriteNumber(MUX_ADDR, 0x0F, NumberFormat.Int8LE, false);
             basic.pause(2000);
         }
         setService(type: number, on: boolean) {
             this.serviceStatus[type] = on ? SVC_ON : SVC_OFF;
-            pins.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([CMD_SERVICE_ENABLE, type, on ? 1 : 0]), false);
+            robotPuPro.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([CMD_SERVICE_ENABLE, type, on ? 1 : 0]), false);
         }
         start() {
             this.enabled = true;
@@ -309,7 +309,7 @@ namespace robotPuCap {
             this.enabled = false;
         }
         read() {
-            let buf = pins.i2cReadBuffer(ESP32_ADDR, SIZE, false);
+            let buf = robotPuPro.i2cReadBuffer(ESP32_ADDR, SIZE, false);
             if (buf.length != SIZE) {
                 failCount += 1;
                 if (failCount == 50) {
