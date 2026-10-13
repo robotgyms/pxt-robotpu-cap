@@ -274,30 +274,70 @@ namespace robotPuCap {
                     basic.pause(1000);
                 }
             });
+            // Dispatch queued events in a separate fiber: slow or blocking user
+            // handlers (servo writes, animations) cannot stall the I2C poll.
+            control.inBackground(function () {
+                while (self.enabled) {
+                    if (eventQueueType.length > 0) {
+                        let t = eventQueueType.shift();
+                        let tok = eventQueueToken.shift();
+                        dispatch(t, tok);
+                    } else {
+                        basic.pause(5);
+                    }
+                }
+            });
+            // Poll watchdog: reset when reads stop succeeding after they once
+            // worked. If packets never arrived at all, warn over serial instead
+            // of reboot-looping (the cap is probably just not attached).
+            control.inBackground(function () {
+                while (self.enabled) {
+                    basic.pause(1000);
+                    if (!self.enabled) break;
+                    if (everOk && input.runningTime() - lastOkMs > WATCHDOG_STALL_MS) {
+                        serial.writeLine("cognicap: i2c poll stalled, resetting");
+                        basic.pause(100);
+                        control.reset();
+                    } else if (!everOk && input.runningTime() > 10000 && !warnedNoDevice) {
+                        warnedNoDevice = true;
+                        serial.writeLine("cognicap: no i2c packets yet - is the cap connected?");
+                    }
+                }
+            });
         }
         stop() {
             this.enabled = false;
         }
         read() {
             let buf = pins.i2cReadBuffer(ESP32_ADDR, SIZE, false);
-            if (buf.length == SIZE) {
-                this.parse(buf);
-                let p = this.packet;
-                if (p.seq != attLastPacketSeq[p.type]) {
-                    attLastPacketSeq[p.type] = p.seq;
-                    if (ATTENTION_TYPES.indexOf(p.type) >= 0) {
-                        let add = p.type == EVT_VOICE ? 1 : p.count;
-                        attentionCount[p.type] = (attentionCount[p.type] || 0) + add;
-                    }
+            if (buf.length != SIZE) {
+                failCount += 1;
+                if (failCount == 50) {
+                    serial.writeLine("cognicap: i2c poll failing");
                 }
-                // Deduplicate wake/service/status packets, but deliver every EVT_VOICE packet
-                // so the user's handler can refresh continuous actions (e.g. keep walking).
-                if (p.type < 0x20 && p.type != EVT_IDLE && p.type != EVT_VOICE) {
-                    if (lastEventSeq[p.type] === p.seq) return;
-                    lastEventSeq[p.type] = p.seq;
-                }
-                dispatch(p.type, p.count);
+                return;
             }
+            failCount = 0;
+            lastOkMs = input.runningTime();
+            everOk = true;
+            this.parse(buf);
+            let p = this.packet;
+            if (p.seq != attLastPacketSeq[p.type]) {
+                attLastPacketSeq[p.type] = p.seq;
+                if (ATTENTION_TYPES.indexOf(p.type) >= 0) {
+                    let add = p.type == EVT_VOICE ? 1 : p.count;
+                    attentionCount[p.type] = (attentionCount[p.type] || 0) + add;
+                }
+            }
+            // Deduplicate wake/service/status packets, but deliver every EVT_VOICE packet
+            // so the user's handler can refresh continuous actions (e.g. keep walking).
+            if (p.type < 0x20 && p.type != EVT_IDLE && p.type != EVT_VOICE) {
+                if (lastEventSeq[p.type] === p.seq) return;
+                lastEventSeq[p.type] = p.seq;
+            }
+            // Queue the event instead of dispatching inline: user handlers must
+            // never block the I2C poll fiber.
+            enqueueEvent(p.type, p.count);
         }
         parse(buf: Buffer) {
             let p = this.packet;
@@ -342,6 +382,27 @@ namespace robotPuCap {
     let voiceCommandHandler: (() => void) | undefined = undefined;
     let lastVoiceCommandToken: number = -1;
     let lastEventSeq: number[] = [];
+
+    // Poll liveness watchdog: if reads stop succeeding after having worked,
+    // the bus or this program is wedged — reset to recover instead of staying
+    // dead until a manual power cycle.
+    const WATCHDOG_STALL_MS = 5000;
+    const EVENT_QUEUE_MAX = 16;
+    let lastOkMs = 0;
+    let everOk = false;
+    let failCount = 0;
+    let warnedNoDevice = false;
+    let eventQueueType: number[] = [];
+    let eventQueueToken: number[] = [];
+
+    function enqueueEvent(type: number, token: number): void {
+        if (eventQueueType.length >= EVENT_QUEUE_MAX) {
+            eventQueueType.shift();
+            eventQueueToken.shift();
+        }
+        eventQueueType.push(type);
+        eventQueueToken.push(token);
+    }
     function isActionToken(type: number): boolean {
         return type == EVT_ACTION || type == EVT_VOICE;
     }
