@@ -634,7 +634,7 @@ namespace robotPuCap {
     }
 
     function ensureQTable(): void {
-        if (qTable.length === 0) {
+        if (!qTable || qTable.length != maxStates) {
             resetQTable();
         }
     }
@@ -870,7 +870,8 @@ namespace robotPuCap {
     //% block="set Q reward for state %state action %action to %reward"
     //% group="AI"
     export function setQValue(state: number, action: number, reward: number): void {
-        if (state < 0 || state >= maxStates || action < 0 || action >= maxActions) return;
+        if (state != Math.floor(state) || state < 0 || state >= maxStates ||
+            action != Math.floor(action) || action < 0 || action >= maxActions) return;
         ensureQTable();
         qTable[state][action] = reward;
     }
@@ -883,7 +884,8 @@ namespace robotPuCap {
     //% block="Q value for state %state action %action"
     //% group="AI"
     export function getQValue(state: number, action: number): number {
-        if (state < 0 || state >= maxStates || action < 0 || action >= maxActions) return 0;
+        if (state != Math.floor(state) || state < 0 || state >= maxStates ||
+            action != Math.floor(action) || action < 0 || action >= maxActions) return 0;
         ensureQTable();
         return qTable[state][action];
     }
@@ -895,7 +897,7 @@ namespace robotPuCap {
     //% block="best Q action for state %state"
     //% group="AI"
     export function getBestAction(state: number): number {
-        if (state < 0 || state >= maxStates) return 0;
+        if (state != Math.floor(state) || state < 0 || state >= maxStates) return 0;
         ensureQTable();
         let best = 0;
         for (let a = 1; a < maxActions; a++) {
