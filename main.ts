@@ -470,8 +470,8 @@ namespace robotPuCap {
      * @param handler the code to run
      */
     //% block="on %object detected"
-    //% group="I2C Callbacks"
-    //% handlerStatement=1
+    //% group="Events"
+    //% weight=100 blockGap=8
     export function onObjectDetected(object: CapObject, handler: () => void): void {
         handlers[object] = handler;
     }
@@ -483,8 +483,8 @@ namespace robotPuCap {
      */
     //% block="on I2C message type %type"
     //% type.min=0 type.max=255
-    //% group="I2C Callbacks"
-    //% handlerStatement=1
+    //% group="Events"
+    //% weight=96 blockGap=8
     export function onI2CMessage(type: number, handler: () => void): void {
         if (type < 0 || type > 255) return;
         handlers[type] = handler;
@@ -801,8 +801,8 @@ namespace robotPuCap {
      * @param handler the code to run
      */
     //% block="on wake word"
-    //% group="Voice"
-    //% handlerStatement=1
+    //% group="Events"
+    //% weight=98 blockGap=8
     export function onWakeWord(handler: () => void): void {
         handlers[EVT_WAKE] = handler;
     }
@@ -813,8 +813,8 @@ namespace robotPuCap {
      * @param handler the code to run
      */
     //% block="on voice command %action"
-    //% group="Voice"
-    //% handlerStatement=1
+    //% group="Events"
+    //% weight=99 blockGap=8
     export function onVoiceAction(action: VoiceAction, handler: () => void): void {
         actionHandlers[action] = handler;
     }
@@ -824,8 +824,8 @@ namespace robotPuCap {
      * Use `last voice command` inside the handler to decide which action to run.
      */
     //% block="on any voice command"
-    //% group="Voice"
-    //% handlerStatement=1
+    //% group="Events"
+    //% weight=97 blockGap=8
     export function onVoiceCommand(handler: () => void): void {
         voiceCommandHandler = handler;
     }

@@ -58,6 +58,7 @@
   "robotPuCap.onI2CMessage|block": "收到 I2C 訊息類型 %type",
   "robotPuCap.onObjectDetected|block": "當偵測到 %object",
   "{id:category}RobotPuCap": "RobotPuCap",
+  "{id:group}Events": "事件",
   "{id:group}I2C Callbacks": "I2C 回呼",
   "{id:group}Learning": "學習",
   "{id:group}Setup": "設定",

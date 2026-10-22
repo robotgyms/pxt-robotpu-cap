@@ -76,6 +76,7 @@
   "robotPuCap.onI2CMessage|block": "on I2C message type %type",
   "robotPuCap.onObjectDetected|block": "on %object detected",
   "{id:category}RobotPuCap": "RobotPuCap",
+  "{id:group}Events": "Events",
   "{id:group}I2C Callbacks": "I2C Callbacks",
   "{id:group}Learning": "Learning",
   "{id:group}Setup": "Setup",
