@@ -19,7 +19,7 @@ The robot stops roughly `distance` millimetres from the object. A larger `distan
 ## Blocks used
 
 - `start CogniCap`
-- `follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain decay %decay`
+- `follow %object at %distance mm with speed gain %speedGain, turn gain %turnGain and decay %decay`
 - `search for %object`
 
 ## Example

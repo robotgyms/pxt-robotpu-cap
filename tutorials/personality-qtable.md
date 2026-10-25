@@ -9,7 +9,7 @@ Use the small built-in Q-table so Robot PU slowly develops a "personality" by le
 The CogniCap extension has a 64-state by 8-action Q-table:
 
 - `reset Q-table` — clears all learned rewards.
-- `set Q reward state <state> action <action> reward <reward>` — stores a reward for a state-action pair.
+- `set Q reward for state %state action %action to %reward` — stores a reward for a state-action pair.
 - `best Q action for state <state>` — picks the action with the highest stored reward.
 
 The available `QAction` values are:

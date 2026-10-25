@@ -4,7 +4,7 @@
  */
 //% weight=100 color=#9e2896 icon="\uf06e"
 //% block="CogniCap"
-//% groups='["Setup", "Vision", "Voice", "Action", "AI", "I2C Callbacks"]'
+//% groups='["Events", "Setup", "Vision", "Voice", "Action", "AI", "I2C Callbacks"]'
 //% helpUrl="https://robotgyms.com/pu/cognicap"
 namespace robotPuCap {
     // I2C addresses

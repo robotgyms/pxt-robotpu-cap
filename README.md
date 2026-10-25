@@ -76,17 +76,18 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 - `stop CogniCap` — stop the background loops.
 - `enable %object detection %enabled` — toggle a detection service by `CapObject`.
 - `enable voice commands %enabled` — toggle voice command recognition.
-- `print i2c packet` — print the last 18-byte packet to the serial console for debugging.
+- `print I2C packet` — print the last 18-byte packet to the serial console for debugging.
 
-### I2C / Events
+### Events
 
-- `on i2c message type %type` — run code when a packet with the given type arrives.
 - `on %object detected` — run code when the selected object is newly detected.
-- `on wake word` — run code when the wake word is heard.
 - `on voice command %action` — run code for a specific voice command token.
+- `on wake word` — run code when the wake word is heard.
 - `on any voice command` — run code for every recognised voice command; use `last voice command` inside.
+- `on I2C message type %type` — run code when a packet with the given type arrives.
 - `last voice command` — the `VoiceAction` token from the latest `EVT_VOICE` packet.
 - `last action token` — the action/count byte from the last `EVT_ACTION` or `EVT_VOICE` packet.
+- `last message type` — the message type byte of the latest packet.
 
 ### Vision
 
@@ -94,7 +95,12 @@ Open MakeCode, add this extension, and look for the **CogniCap** category.
 - `%object x (mm)` / `%object y (mm)` — ground-plane position from the camera.
 - `%object width` / `%object height` — bounding box size in pixels.
 - `%object yaw` / `%object pitch` — head angle to the object.
-- `%object count` — detection count or score byte.
+- `last object x (mm)` / `y (mm)` / `z (mm)` — position fields of the latest packet.
+- `last object width` / `height` / `yaw` / `pitch` — geometry of the latest detection.
+- `last object count` — detection count or token byte from the latest packet.
+- `last object confidence` — confidence byte from the latest packet.
+- `last object valid` — whether the latest packet carries a fresh detection.
+- `enable detections %objects` — enable several detection services at once.
 
 ### Voice
 
@@ -110,23 +116,23 @@ The `VoiceAction` enum contains the words the ESP32-S3 can learn with MultiNet:
 ### Learning
 
 - `reset Q-table` — clear the 64-state × 8-action table.
-- `set Q reward state <state> action <action> reward <reward>` — store a reward.
-- `Q value state <state> action <action>` — read a stored value.
-- `best Q action for state <state>` — pick the action with the highest Q value.
+- `set Q reward for state %state action %action to %reward` — store a reward.
+- `Q value for state %state action %action` — read a stored value.
+- `best Q action for state %state` — pick the action with the highest Q value.
 
 ### Attention
 
 - `attention state` — current 3-bit state built from face, voice and sound spikes.
 - `attention reward` — reward score from the recent face/voice/sound counters.
 - `attention action` — update the Q-table with the last reward and return the best action for the current state.
-- `set attention sound threshold <threshold>` — sound level over which a microphone sample counts as a spike.
-- `set attention explore <percent>` — chance (0..100) of picking a random action for exploration.
+- `set attention sound threshold %threshold` — sound level over which a microphone sample counts as a spike.
+- `set attention explore chance to %percent` — chance (0..100) of picking a random action for exploration.
 - `reset attention counters` — clear the face/voice/sound counters.
 
 ### Tracking
 
-- `head track %object pitch gain %pitchSpeedGain yaw gain %yawSpeedGain` — keep the head centred on the object.
-- `follow %object distance %distance speed gain %speedGain turn gain %turnGain` — drive Robot PU toward the object while keeping the target distance.
+- `head track %object with gain %trackGain and speed %trackSpeed` — keep the head centred on the object.
+- `follow %object at %distance mm with speed gain %speedGain, turn gain %turnGain and decay %decay` — drive Robot PU toward the object while keeping the target distance.
 - `search for %object` — scan the head to reacquire a lost object.
 
 ## Example: Face tracking

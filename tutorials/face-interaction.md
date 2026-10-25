@@ -6,12 +6,12 @@ Keep Robot PU's head pointed at a person's face and react when a face appears.
 
 ## How it works
 
-The `head track %object` block reads the yaw and pitch of the selected object from the latest I2C packet, then moves the head yaw and pitch servos toward it. It uses a small smoothing filter so the motion is steady and per-object gains to control response speed.
+The `head track %object` block reads the yaw and pitch of the selected object from the latest I2C packet, then moves the head yaw and pitch servos toward it. It uses a small smoothing filter so the motion is steady, with a single gain and servo speed to control the response.
 
 ## Blocks used
 
 - `start CogniCap`
-- `head track %object pitch gain %pitchSpeedGain yaw gain %yawSpeedGain`
+- `head track %object with gain %trackGain and speed %trackSpeed`
 - `on %object detected`
 - `robotpuVoice set voice`
 - `robotpuVoice say`
@@ -35,7 +35,7 @@ basic.forever(function () {
 
 ## Tuning
 
-- If the head is too slow, lower `basic.pause` or increase `pitchSpeedGain` / `yawSpeedGain`.
+- If the head is too slow, lower `basic.pause` or increase `trackGain` / `trackSpeed`.
 - If the head jitters, the smoothing inside `head track` already helps; you can also slow the loop rate or reduce the gains.
 
 ## Fun face interaction ideas

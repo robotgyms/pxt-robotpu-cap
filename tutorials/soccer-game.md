@@ -20,7 +20,7 @@ If only the ball is seen, the robot simply follows it. If nothing is seen, the r
 - `start CogniCap`
 - `object detected`
 - `object x (mm)` / `object y (mm)`
-- `follow %object at distance %distance mm speed gain %speedGain turn gain %turnGain`
+- `follow %object at %distance mm with speed gain %speedGain, turn gain %turnGain and decay %decay`
 - `search for %object`
 
 ## Example

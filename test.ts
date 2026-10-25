@@ -1,5 +1,22 @@
 robotPuCap.startCogniCap();
 
+// 0. Event handlers (top-level hat blocks)
+robotPuCap.onObjectDetected(robotPuCap.CapObject.Face, function () {
+    robotPuPro.start(robotPuPro.Action.Jump, 2);
+});
+robotPuCap.onVoiceAction(robotPuCap.VoiceAction.Rest, function () {
+    robotPuPro.start(robotPuPro.Action.Rest, 0);
+});
+robotPuCap.onWakeWord(function () {
+    basic.showIcon(IconNames.Surprised);
+});
+robotPuCap.onVoiceCommand(function () {
+    basic.showNumber(robotPuCap.lastVoiceCommand());
+});
+robotPuCap.onI2CMessage(0x20, function () {
+    basic.showNumber(robotPuCap.lastActionToken());
+});
+
 // 1. Face detection demo
 if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
     basic.showIcon(IconNames.Happy);
@@ -49,3 +66,10 @@ robotPuCap.resetQTable();
 robotPuCap.setQValue(0, robotPuCap.QAction.Walk, 1);
 let best = robotPuCap.getBestAction(0);
 basic.showNumber(best);
+
+// 5b. Q-table guards: invalid indices must not crash
+robotPuCap.setQValue(-1, 0, 5);            // out-of-range state: ignored
+robotPuCap.setQValue(0, 8, 5);             // out-of-range action: ignored
+let qBad = robotPuCap.getQValue(64, 0);    // returns 0
+let bestBad = robotPuCap.getBestAction(-1);// returns 0
+basic.showNumber(qBad + bestBad);

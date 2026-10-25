@@ -213,7 +213,7 @@ The micro:bit treats the message type as the service key. `type` is therefore on
 
 ### Micro:bit service keeper
 
-`start CogniCap` starts a background loop that periodically re-sends `CMD_SERVICE_ENABLE` for every known service whose `serviceStatus[type] != SVC_OFF`. The loop sends each enable command every few milliseconds and then waits **30 seconds** before restarting the list. This ensures that a camera reboot does not permanently disable services.
+`start CogniCap` starts a background loop that periodically re-sends `CMD_SERVICE_ENABLE` for every known service whose `serviceStatus[type] != SVC_OFF`. The loop sends each enable command **500 ms** apart and then waits **30 seconds** before restarting the list. This ensures that a camera reboot does not permanently disable services.
 
 | Constant      | Value  | Meaning                                           |
 |---------------|--------|---------------------------------------------------|

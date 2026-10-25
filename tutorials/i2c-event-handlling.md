@@ -9,18 +9,18 @@ React to CogniCap events instead of polling fields manually.
 `robotPuCap` dispatches every I2C packet to a callback based on its message type. You can register callbacks for:
 
 - any object detection event (`on %object detected`)
-- any I2C message type (`on i2c message type %type`)
+- any I2C message type (`on I2C message type %type`)
 - wake word events (`on wake word`)
-- voice action tokens (`on voice action %action`)
+- voice action tokens (`on voice command %action`)
 
 When the event happens, your callback runs automatically.
 
 ## Blocks used
 
 - `on %object detected`
-- `on i2c message type %type`
+- `on I2C message type %type`
 - `on wake word`
-- `on voice action %action`
+- `on voice command %action`
 - `last action token`
 
 ## Example: face greeting
