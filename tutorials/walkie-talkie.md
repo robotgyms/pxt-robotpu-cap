@@ -131,9 +131,9 @@ robotPuCap.startCogniCap()
 // turn on face detection only
 robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.1
+let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+let trackGain = 0.05
 music.play(music.createSoundExpression(WaveShape.Sine, 5000, 0, 255, 0, 500, SoundExpressionEffect.None, InterpolationCurve.Linear), music.PlaybackMode.UntilDone)
 robotpuVoice.setVoice(VoicePreset.RobotPU)
 robotPuPro.setServoTrim(0, -2)
@@ -209,8 +209,8 @@ basic.forever(function () {
 
 ## Tuning
 
-- `trackGain` (0.2): how far the head moves per unit of face angle. Higher values make the head snap to the face faster but may overshoot.
-- `trackSpeed` (0.1): the maximum step speed for the head. Higher values make the head move faster; lower values are smoother.
+- `trackGain` (0.05): how far the head moves per unit of face angle. Higher values make the head snap to the face faster but may overshoot.
+- `trackSpeed` (0.3): the maximum step speed for the head. Higher values make the head move faster; lower values are smoother.
 - `walkSpeed` gain (0.2): multiplies the distance error `(y_mm - 500)` to set the forward/back-up speed. Increase to approach faster; decrease to move more gently.
 - `walkTurn` gain (`-0.2`): how aggressively the body turns toward the face. The negative sign makes the robot turn toward the side the face is on. Increase the magnitude to turn faster.
 - `walkTurn` smoothing (0.5): the low-pass filter blending factor. Higher values keep the previous turn more, making the robot turn more smoothly.

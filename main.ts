@@ -1017,10 +1017,10 @@ namespace robotPuCap {
      * @param trackSpeed servo step speed (higher = faster, may oscillate)
      */
     //% block="head track %object with gain %trackGain and speed %trackSpeed"
-    //% trackGain.defl=0.2 trackSpeed.defl=0.1
+    //% trackGain.defl=0.05 trackSpeed.defl=0.3
     //% group="Action"
     export function headTrackObject(object: CapObject,
-                                    trackGain: number = 0.15, trackSpeed: number = 0.1): void {
+                                    trackGain: number = 0.05, trackSpeed: number = 0.3): void {
         // API mode does nothing in the gait loop, so tracking owns the head
         // instead of fighting the running action for servos 4 and 5.
         robotPuPro.start(robotPuPro.Action.API, 0)

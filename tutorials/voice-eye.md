@@ -115,9 +115,9 @@ let now = 0
 let lostTimeout = 1000
 let decay = 0.7
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.1
+let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+let trackGain = 0.05
 
 function singHappyBirthday() {
     robotpuVoice.say("Happy birthday to Robot P U!")
@@ -343,7 +343,7 @@ basic.forever(function () {
 
 ## Tuning
 
-- `trackGain` (0.2) and `trackSpeed` (0.1): same as in [Object Tracking](object-tracking.md). Increase `trackGain` for faster tracking; too high causes overshoot or oscillation.
+- `trackGain` (0.05) and `trackSpeed` (0.3): same as in [Object Tracking](object-tracking.md). Increase `trackGain` for faster tracking; too high causes overshoot or oscillation.
 - `lostTimeout` (1000 ms) and `decay` (0.7): how long the head follows through after the face disappears before giving up and standing to search.
 - The long-lost branch calls `robotPuPro.stand()`, which stands the robot up to look for you — even if it was sitting. Swap it for `robotPuPro.sit()` if you want the robot to stay seated while searching.
 - `jump` and `kick` are started with `steps = 1` so they run once and tracking resumes when `is %action done` fires. `laugh` and `cry` use `steps = 0`, so they keep going (and keep tracking paused) until you say `stop`.

@@ -123,9 +123,9 @@ robotPuCap.startCogniCap()
 // turn on face detection only
 robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.1
+let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+let trackGain = 0.05
 music.play(music.createSoundExpression(WaveShape.Sine, 5000, 0, 255, 0, 500, SoundExpressionEffect.None, InterpolationCurve.Linear), music.PlaybackMode.UntilDone)
 robotpuVoice.setVoice(VoicePreset.RobotPU)
 robotPuPro.setServoTrim(0, -5)
@@ -191,8 +191,8 @@ basic.forever(function () {
 
 ## Tuning
 
-- `trackGain` (0.2): scales the head target offset. Higher makes the head snap to the face or random target faster; lower is smoother.
-- `trackSpeed` (0.1): scales the servo step duration. Larger values make the head move slower (longer steps); smaller values make it faster and may overshoot.
+- `trackGain` (0.05): scales the head target offset. Higher makes the head snap to the face or random target faster; lower is smoother.
+- `trackSpeed` (0.3): scales the servo step size. Larger values make the head move faster; smaller values are smoother.
 - `lookInterval` (2000 ms initial): the timer that picks the next random look position. The actual interval is randomized between `1500` and `3000` ms each time to make the scanning feel natural.
 - `randint(-15, 15)` and `randint(-10, 10)`: the random step sizes added to the current yaw and pitch while searching. Increase them to cover more ground faster; decrease them for slower, smoother scanning. The `Math.max / Math.min` clamps keep the head inside the `yaw [-60, 60]` and `pitch [-60, 15]` limits.
 - `randint(0, 68) == 1`: the random chance of saying a phrase each loop. Raise `68` to speak less often.

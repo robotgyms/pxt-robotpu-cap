@@ -227,9 +227,9 @@ The ESP32-S3 must accept `CMD_SERVICE_ENABLE`, update an internal service state 
 
 For vision packets (`type >= 0x20`) the ESP32 must fill the following fields:
 
-- `x_mm`, `y_mm`, `z_mm`: signed 16-bit distances in millimetres from the camera optical centre. `x` is positive to the right, `y` is positive downward, `z` is positive forward (distance into the scene).
+- `x_mm`, `y_mm`, `z_mm`: signed 16-bit distances in millimetres from the camera optical centre. `x` is lateral, positive to the robot's left; `y` is forward distance; `z` is vertical.
 - `w`, `h`: unsigned 16-bit bounding box width and height in pixels.
-- `yaw`: signed 8-bit head yaw in degrees. `0` = straight ahead, positive = object is to the robot's right.
+- `yaw`: signed 8-bit head yaw in degrees. `0` = straight ahead, positive = object is to the robot's left.
 - `pitch`: signed 8-bit head pitch in degrees. `0` = level, positive = object is above the robot.
 
 These values are used directly by `headTrackObject` and `followObject` on the micro:bit.

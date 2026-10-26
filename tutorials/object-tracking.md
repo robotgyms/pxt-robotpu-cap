@@ -47,9 +47,9 @@ robotPuCap.startCogniCap()
 // turn on face detection only
 robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.10
+let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+let trackGain = 0.05
 // main event loop
 basic.forever(function () {
     now = input.runningTime()
@@ -129,6 +129,6 @@ if (robotPuCap.objectDetected(robotPuCap.CapObject.YourNewObject)) {
 ## Tuning
 
 - `0.5` smoothing weight: give the `old` value more weight for smoother, slower motion; give the `new` value more weight for faster, jitterier motion.
-- `trackGain` (`0.4`): scales how far the head turns toward the object. Increase for faster tracking; too high will cause overshoot or oscillation.
+- `trackGain` (`0.05`): scales how far the head turns toward the object. Increase for faster tracking; too high will cause overshoot or oscillation.
 - `trackSpeed` (`0.3`): scales the servo step duration, so larger angles move faster. Increase for snappier motion; too high will cause oscillation.
 - The `Math.max(0.5, ...)` guard ensures the servo step duration never drops below 0.5 ms, avoiding jerky jumps.

@@ -40,7 +40,7 @@ The full `VoiceAction` enum is listed below. The block label is the word the rob
 | Token | Word | Suggested action |
 |-------|------|------------------|
 | `Rest` | rest | `robotPuPro.start(robotPuPro.Action.Rest, 0)` |
-| `Go` | go | `robotPuPro.start(robotPuPro.Action.Walk, 0)` |
+| `Go` | go | `robotPuPro.start(robotPuPro.Action.Explore, 0)` |
 | `Back` | back | `robotPuPro.start(robotPuPro.Action.WalkBackward, 0)` |
 | `Stop` | stop | `robotPuPro.start(robotPuPro.Action.Rest, 0)` |
 | `Jump` | jump | `robotPuPro.start(robotPuPro.Action.Jump, 1)` |

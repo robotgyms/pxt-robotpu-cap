@@ -122,5 +122,5 @@ robotPuCap.onI2CMessage(0x20, function () {
 ## Tips
 
 - The `seq` number increments each time the ESP32 sends a new packet. A jump means packets were skipped.
-- `x_mm` is lateral (positive to the right), `y_mm` is forward distance, `z_mm` is vertical.
+- `x_mm` is lateral (positive to the robot's left), `y_mm` is forward distance, `z_mm` is vertical.
 - `yaw` and `pitch` are small angular offsets from the camera centerline, useful for head tracking.

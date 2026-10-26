@@ -77,10 +77,10 @@ let now2 = 0
 robotPuCap.startCogniCap()
 // turn on face detection only
 robotPuCap.enableDetections([robotPuCap.CapObject.Face])
-// tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.10
-// tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+// tweak it for servo step speed, high value will cause oscillation
+let trackSpeed = 0.3
+// tweak it for tracking gain, high value will cause oscillation
+let trackGain = 0.05
 robotpuVoice.setVoice(VoicePreset.RobotPU)
 // main event loop
 basic.forever(function () {
@@ -130,7 +130,7 @@ basic.forever(function () {
 
 ### Tuning
 
-- `trackGain` (`0.2`) and `trackSpeed` (`0.1`) work the same as in the [Object Tracking](object-tracking.md) tutorial.
+- `trackGain` (`0.05`) and `trackSpeed` (`0.3`) work the same as in the [Object Tracking](object-tracking.md) tutorial.
 - `15` and `20` are the yaw and pitch thresholds for calling the face off-centre. Increase them to reduce chatter; decrease them to react to smaller movements.
 - `sayCooldown` (`1500` ms) is the minimum time before the robot will say the centred "hello I see you" phrase. Directional side changes are spoken immediately. Increase it to make the centre phrase less frequent.
 - Change the strings in the `if / else` chain to make the robot say whatever you like.

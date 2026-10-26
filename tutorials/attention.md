@@ -100,6 +100,8 @@ voiceAction[robotPuCap.VoiceAction.Walk] = robotPuPro.Action.Walk
 voicePhrase[robotPuCap.VoiceAction.Walk] = "Ok! I am going."
 voiceAction[robotPuCap.VoiceAction.Back] = robotPuPro.Action.WalkBackward
 voicePhrase[robotPuCap.VoiceAction.Back] = "Watch my six!"
+voiceAction[robotPuCap.VoiceAction.Go] = robotPuPro.Action.Explore
+voicePhrase[robotPuCap.VoiceAction.Go] = "Treature hunting!"
 voiceAction[robotPuCap.VoiceAction.Left] = robotPuPro.Action.TurnLeft
 voicePhrase[robotPuCap.VoiceAction.Left] = "Turn Left!"
 voiceAction[robotPuCap.VoiceAction.Right] = robotPuPro.Action.TurnRight
@@ -128,11 +130,11 @@ let cmd = 0
 // one handler catches every voice token — "p u" / "pew" arrives as token 30
 robotPuCap.onVoiceCommand(function () {
     cmd = robotPuCap.lastVoiceCommand()
+    attentiveUntil = input.runningTime() + 30000
     // reset control vector to 0 to avoid falling
     robotPuPro.setControlOffsets([0, 1, 2, 3, 4, 5], [0, 0, 0, 0, 0, 0])
     if (cmd == robotPuCap.VoiceAction.Attention) {
         attentive = true
-        attentiveUntil = input.runningTime() + 30000
         robotPuPro.leftEyeBright(0.01)
         robotPuPro.rightEyeBright(0.01)
         // stand up to pay attention
@@ -147,8 +149,8 @@ robotPuCap.onVoiceCommand(function () {
 })
 
 // tweak them for tracking response; high values will cause oscillation
-let trackGain = 0.2
-let trackSpeed = 0.1
+let trackGain = 0.05
+let trackSpeed = 0.3
 // main event loop
 basic.forever(function () {
     if (attentive) {
@@ -201,7 +203,7 @@ robotPuCap.onI2CMessage(16, function () {
 ## Tuning
 
 - `attentiveUntil` (`+ 30000`): how long the robot keeps tracking after `p u` — 30 s here, much longer than the firmware's 10 s command window. Saying `p u` again re-arms it — that is what makes "keep saying p u" produce continuous attention. Lower it if the robot should relax sooner.
-- `trackGain` (0.2) and `trackSpeed` (0.1): head-tracking gains passed to `head track` — raise `trackGain` for a snappier head, lower it to stop oscillation.
+- `trackGain` (0.05) and `trackSpeed` (0.3): head-tracking gains passed to `head track` — raise `trackGain` for a snappier head, lower it to stop oscillation.
 - `head track` handles the lost-face behaviour itself: it coasts for up to ~1 s (decaying the smoothed angles), recentres for another second, then keeps the eyes at their brightest "looking for you" blink.
 - Repeated voice packets re-fire the handler. If the robot repeats its phrase too often while a token is streaming in, add a cooldown like `if (input.runningTime() - lastCmdTime > 3000)` around the `else` branch.
 - The control-offset reset runs on every voice token — if you add a handler that intentionally sets offsets (e.g. a lean), reset them again before the next command or the robot may fall.

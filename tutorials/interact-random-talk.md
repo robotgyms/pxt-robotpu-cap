@@ -125,9 +125,9 @@ robotPuCap.startCogniCap()
 // turn on face detection only
 robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.1
+let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+let trackGain = 0.05
 music.play(music.createSoundExpression(WaveShape.Sine, 5000, 0, 255, 0, 500, SoundExpressionEffect.None, InterpolationCurve.Linear), music.PlaybackMode.UntilDone)
 robotpuVoice.setVoice(VoicePreset.RobotPU)
 robotPuPro.setServoTrim(0, -5)
@@ -190,8 +190,8 @@ basic.forever(function () {
 
 ## Tuning
 
-- `trackGain` (0.2): how far the head moves per unit of face angle. Higher values make the head snap to the face faster but may overshoot.
-- `trackSpeed` (0.1): the maximum step speed for the head. Higher values make the head move faster; lower values are smoother.
+- `trackGain` (0.05): how far the head moves per unit of face angle. Higher values make the head snap to the face faster but may overshoot.
+- `trackSpeed` (0.3): the maximum step speed for the head. Higher values make the head move faster; lower values are smoother.
 - `decay` (0.95): how quickly the head drifts back to the centre when the face is briefly lost. Closer to 1 keeps the head pointed at the last seen position longer.
 - `lostTimeout` (3000 ms): time after which the head recentres, then later the robot starts exploring.
 - `randint(0, 30) == 1`: the random chance of saying a line each loop. With `basic.pause(5)`, this means the robot may speak a few times per second when looking at you. Lower `30` to make it talk less often, or raise it to make it more chatty.

@@ -84,9 +84,9 @@ let turnDecay = 0.9
 let speedGain = 0.2
 let turnGain = -0.2
 // tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.1
+let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
-let trackGain = 0.2
+let trackGain = 0.05
 let walkSpeed = 0
 let walkTurn = 0
 let objectFound = 0
@@ -190,7 +190,7 @@ basic.forever(function () {
 - `lostTimeout` (6000 ms): how long the robot coasts before it stops and scans. Raise it if your camera drops faces often.
 - The `0.8` / `1.1` hysteresis band on `tooClose`: widen it if the robot flips between compliments and complaints at the bubble edge.
 - The chatter loop pauses `8000` ms between lines — raise it for a quieter robot, or replace the strings with whatever suits its manners.
-- `trackGain` (0.2) / `trackSpeed` (0.1): head-tracking gains, same as in [Object Tracking](object-tracking.md).
+- `trackGain` (0.05) / `trackSpeed` (0.3): head-tracking gains, same as in [Object Tracking](object-tracking.md).
 - If the robot walks *away* from a distant face, check the sign of `object y` for your build with `serial.writeLine("d=" + faceDist)`.
 
 ## What to try next
