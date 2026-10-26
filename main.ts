@@ -1020,7 +1020,7 @@ namespace robotPuCap {
     //% trackGain.defl=0.2 trackSpeed.defl=0.1
     //% group="Action"
     export function headTrackObject(object: CapObject,
-                                    trackGain: number = 0.2, trackSpeed: number = 0.1): void {
+                                    trackGain: number = 0.15, trackSpeed: number = 0.1): void {
         // API mode does nothing in the gait loop, so tracking owns the head
         // instead of fighting the running action for servos 4 and 5.
         robotPuPro.start(robotPuPro.Action.API, 0)
