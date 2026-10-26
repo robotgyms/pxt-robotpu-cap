@@ -990,6 +990,8 @@ namespace robotPuCap {
     // Generic object tracking state (indexed by CapObject enum value)
     let trackYawLocks: number[] = [];
     let trackPitchLocks: number[] = [];
+    let trackLastSeen: number[] = [];
+    let trackInterval: number[] = [];
 
     function moveHead(yawDelta: number, pitchDelta: number, brightEyes: boolean) {
         let nextYaw = clamp(currentYaw + yawDelta, -45, 45);
@@ -1005,34 +1007,55 @@ namespace robotPuCap {
     }
 
     /**
-     * Move the head so the selected object stays centred.
+     * Move the head so the selected object stays centred. Coasts briefly
+     * through dropouts and blinks the eyes brighter the longer it is lost.
+     * Call repeatedly, e.g. in a forever loop or while a flag is set.
+     * Switches the robot to API action mode (gait stops in its last pose)
+     * so no running action fights the head servos.
      * @param object the object to track
-     * @param trackGain position offset gain
-     * @param trackSpeed servo step speed
+     * @param trackGain position offset gain (higher = snappier, may oscillate)
+     * @param trackSpeed servo step speed (higher = faster, may oscillate)
      */
     //% block="head track %object with gain %trackGain and speed %trackSpeed"
-    //% trackGain.defl=0.3 trackSpeed.defl=0.16
+    //% trackGain.defl=0.2 trackSpeed.defl=0.1
     //% group="Action"
     export function headTrackObject(object: CapObject,
-                                    trackGain: number = 0.3, trackSpeed: number = 0.16): void {
+                                    trackGain: number = 0.2, trackSpeed: number = 0.1): void {
+        // API mode does nothing in the gait loop, so tracking owns the head
+        // instead of fighting the running action for servos 4 and 5.
+        robotPuPro.start(robotPuPro.Action.API, 0)
+        const LOST_TIMEOUT_MS = 1000;
+        const DECAY = 0.7;
         let c = ensureCap();
+        let now = input.runningTime();
+        let smoothYaw = trackYawLocks[object] || 0;
+        let smoothPitch = trackPitchLocks[object] || 0;
+        let lastSeen = trackLastSeen[object] || 0;
         if (c.detected(object)) {
-            let yaw = c.packet.yaw;
-            let pitch = c.packet.pitch;
-            let smoothYaw = trackYawLocks[object] || 0;
-            let smoothPitch = trackPitchLocks[object] || 0;
-            smoothYaw = 0.5 * smoothYaw + 0.5 * yaw;
-            smoothPitch = 0.5 * smoothPitch + 0.5 * pitch;
-            trackYawLocks[object] = smoothYaw;
-            trackPitchLocks[object] = smoothPitch;
+            trackInterval[object] = now - lastSeen;
+            trackLastSeen[object] = now;
+            smoothYaw = 0.5 * smoothYaw + 0.5 * c.packet.yaw;
+            smoothPitch = 0.5 * smoothPitch + 0.5 * c.packet.pitch;
             robotPuPro.leftEyeBright(0.05);
             robotPuPro.rightEyeBright(0.05);
-            let targets = robotPuPro.servoTargets();
-            let currentYaw = targets[4];
-            let currentPitch = targets[5];
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)));
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)));
+        } else if (now - lastSeen < Math.min(trackInterval[object] || LOST_TIMEOUT_MS, LOST_TIMEOUT_MS)) {
+            // Coast through a brief dropout.
+            smoothYaw = smoothYaw * DECAY;
+            smoothPitch = smoothPitch * DECAY;
+            robotPuPro.blink(1);
+        } else if (now - lastSeen < 2 * LOST_TIMEOUT_MS) {
+            smoothYaw = 0;
+            smoothPitch = 0;
+            robotPuPro.blink(2);
+        } else {
+            // Still lost: bright eyes signal searching.
+            robotPuPro.blink(3);
         }
+        trackYawLocks[object] = smoothYaw;
+        trackPitchLocks[object] = smoothPitch;
+        let targets = robotPuPro.servoTargets();
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, targets[4] + smoothYaw * trackGain, Math.max(2, Math.abs(smoothYaw * trackSpeed)));
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, targets[5] + smoothPitch * trackGain, Math.max(2, Math.abs(smoothPitch * trackSpeed)));
     }
 
     // Generic object follow state

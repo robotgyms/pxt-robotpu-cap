@@ -43,9 +43,10 @@ Token `30` has its own `VoiceAction` member — `attention` — so a single `on 
 4. `on any voice command` fires for every voice token (it is skipped only for tokens that have a dedicated `on voice command %action` handler, and this example registers none). When `last voice command` is `attention` (token `30`), it sets `attentive = true`, pushes `attentiveUntil` 30 s into the future, and plays the alert — including `start stand` so the robot straightens up to look at you, and `say` reading the reply from `voicePhrase[attention]`. Saying `p u` again re-arms the timer.
 5. Every handler call first resets the control offsets to zero — leftover lean/turn offsets from a previous action can tip the robot over when the next one starts. `EVT_VOICE` packets are delivered on every poll and are *not* deduplicated, so a repeated token simply re-runs its action and phrase — harmless for continuous actions like walking.
 6. Any other token sets `attentive = false` — attention turns into action — then the dictionaries decide which action runs and what the robot says. Tokens with a phrase but no action (`record`, `video`, `photo` — the cap does the recording itself) just get the spoken reply, and tokens with neither entry are ignored, so an unmapped phrase like `sing` can't confuse the action state.
-7. In `forever`, while `attentive` and inside the 30 s window, the robot runs in `API` action mode (which does nothing, so no behaviour fights for the servos):
-   - **Face found**: `object yaw` / `object pitch` are smoothed and `servo step` moves the head toward the face — same as [Object Tracking](object-tracking.md).
-   - **No face**: the smoothed angles decay back to centre and the eyes brighten the longer the face is gone — the robot keeps looking without wandering off.
+7. In `forever`, while `attentive` and inside the 30 s window, `head track %object` runs every tick. It first puts the robot in `API` action mode (the gait loop freezes in its last pose, so no behaviour fights for the head servos), then does the whole tracking loop by itself:
+   - **Face found**: it reads `object yaw` / `object pitch`, smooths them, and steps the head servos toward the face — same as [Object Tracking](object-tracking.md).
+   - **Brief dropout**: the smoothed angles decay and the head coasts in the last direction.
+   - **No face for a while**: the head recentres and the eyes blink brighter the longer the face is gone — the robot keeps looking without wandering off.
 8. When `attentiveUntil` passes with no command, the robot dims its eyes and returns to `Rest`.
 9. Bonus: every `p u` packet also counts toward the built-in attention counters, so `attention state` bit 1 (voice) lights up and `attention reward` grows — see [Personality with Q-Learning](personality-qtable.md).
 
@@ -58,17 +59,12 @@ Token `30` has its own `VoiceAction` member — `attention` — so a single `on 
 - `on any voice command` + `last voice command`
 - `on voice command %action` (alternative)
 - `last action token` (raw alternative)
-- `object detected`
-- `object yaw`
-- `object pitch`
+- `head track %object with gain %trackGain and speed %trackSpeed`
 - `set control offsets`
 - `start %action for %steps steps`
-- `servo targets`
-- `servo step`
 - `stand`
 - `left eye bright`
 - `right eye bright`
-- `blink`
 - `robotpuVoice set voice`
 - `robotpuVoice say`
 
@@ -150,72 +146,24 @@ robotPuCap.onVoiceCommand(function () {
     }
 })
 
-let currentPitch = 0
-let currentYaw = 0
-let targets: number[] = []
-let smoothPitch = 0
-let smoothYaw = 0
-let pitch = 0
-let yaw = 0
-let detectionInterval = 0
-let followLastTime = 0
-let now = 0
-let lostTimeout = 1000
-let decay = 0.7
-// tweak it for tracking speed, high value will cause oscillation
-let trackSpeed = 0.10
-// tweak it for accelration speed, high value will cause oscillation
+// tweak them for tracking response; high values will cause oscillation
 let trackGain = 0.2
+let trackSpeed = 0.1
 // main event loop
 basic.forever(function () {
     if (attentive) {
-        now = input.runningTime()
-        if (now > attentiveUntil) {
+        if (input.runningTime() > attentiveUntil) {
             // attention expired — dim the eyes and relax
             attentive = false
             robotPuPro.leftEyeBright(0.02)
-            robotPuPro.rightEyeBright(0.02  )
+            robotPuPro.rightEyeBright(0.02)
             robotPuPro.start(robotPuPro.Action.Rest, 0)
         } else {
-            // API mode does nothing, so no behaviour fights for the servos
-            robotPuPro.start(robotPuPro.Action.API, 0)
-            // Track the chosen object if it is visible
-            if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
-                detectionInterval = now - followLastTime
-                followLastTime = now
-                // soft light of eyes, and look at you
-                robotPuPro.leftEyeBright(0.01)
-                robotPuPro.rightEyeBright(0.01)
-                // get the angle to the object
-                yaw = robotPuCap.objectYaw(robotPuCap.CapObject.Face)
-                pitch = robotPuCap.objectPitch(robotPuCap.CapObject.Face)
-                // Smooth the measured angles
-                smoothYaw = 0.5 * smoothYaw + 0.5 * yaw
-                smoothPitch = 0.5 * smoothPitch + 0.5 * pitch
-                // Read the current head position and add the offset
-                targets = robotPuPro.servoTargets()
-                currentYaw = targets[4]
-                currentPitch = targets[5]
-                serial.writeLine("yaw:" + smoothYaw)
-                serial.writeLine("pitch:" + smoothPitch)
-            } else if (now - followLastTime < Math.min(detectionInterval, lostTimeout)) {
-                // follow through
-                smoothYaw = smoothYaw * decay
-                smoothPitch = smoothPitch * decay
-                // eyes brighter
-                robotPuPro.blink(1)
-            } else if (now - followLastTime < 2 * lostTimeout) {
-                smoothYaw = 0
-                smoothPitch = 0
-                // eyes much brighter
-                robotPuPro.blink(2)
-            } else {
-                // eyes so bright to look for you
-                robotPuPro.blink(3)
-            }
-            // Move head toward the object
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(1, Math.abs(smoothYaw * trackSpeed)))
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(1, Math.abs(smoothPitch * trackSpeed)))
+            // API mode does nothing, so no behaviour fights for the servos.
+            // head track smooths the angles, steps the head toward the face,
+            // coasts through dropouts, and blinks brighter the longer the
+            // face is lost — all inside the block.
+            robotPuCap.headTrackObject(robotPuCap.CapObject.Face, trackGain, trackSpeed)
         }
         basic.pause(10)
     } else {
@@ -253,9 +201,8 @@ robotPuCap.onI2CMessage(16, function () {
 ## Tuning
 
 - `attentiveUntil` (`+ 30000`): how long the robot keeps tracking after `p u` — 30 s here, much longer than the firmware's 10 s command window. Saying `p u` again re-arms it — that is what makes "keep saying p u" produce continuous attention. Lower it if the robot should relax sooner.
-- `trackGain` (0.2) and `trackSpeed` (0.1): same head-tracking gains as in [Object Tracking](object-tracking.md) — raise `trackGain` for a snappier head, lower it to stop oscillation.
-- `decay` (0.7): how fast the smoothed angles fade during the no-face follow-through — raise toward `0.9` to keep looking in the last direction longer.
-- `lostTimeout` (1000 ms): how long the robot follows through and then holds before giving the eyes their brightest "looking for you" blink.
+- `trackGain` (0.2) and `trackSpeed` (0.1): head-tracking gains passed to `head track` — raise `trackGain` for a snappier head, lower it to stop oscillation.
+- `head track` handles the lost-face behaviour itself: it coasts for up to ~1 s (decaying the smoothed angles), recentres for another second, then keeps the eyes at their brightest "looking for you" blink.
 - Repeated voice packets re-fire the handler. If the robot repeats its phrase too often while a token is streaming in, add a cooldown like `if (input.runningTime() - lastCmdTime > 3000)` around the `else` branch.
 - The control-offset reset runs on every voice token — if you add a handler that intentionally sets offsets (e.g. a lean), reset them again before the next command or the robot may fall.
 - Add a new voice command by adding one row to `voiceAction`, `voiceSteps` (optional — defaults to `0` = run forever), and `voicePhrase` — the shared `else` branch already clears `attentive`. If you register a dedicated `on voice command %action` handler for a token instead, set `attentive = false` there too, or the tracking loop will keep fighting the action for the head servos.
