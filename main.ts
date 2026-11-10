@@ -276,12 +276,28 @@ namespace robotPuCap {
             });
             // Dispatch queued events in a separate fiber: slow or blocking user
             // handlers (servo writes, animations) cannot stall the I2C poll.
+            // Each event gets its own fiber so a handler that blocks forever
+            // (e.g. waiting on a wedged voice queue) can never stall delivery
+            // of later events — the dispatcher keeps running and only that
+            // event's fiber is lost. busyHandlerFibers caps how many wedged
+            // handler fibers can leak before new events start dropping.
             control.inBackground(function () {
                 while (self.enabled) {
                     if (eventQueueType.length > 0) {
                         let t = eventQueueType.shift();
                         let tok = eventQueueToken.shift();
-                        dispatch(t, tok);
+                        if (busyHandlerFibers >= HANDLER_FIBER_MAX) {
+                            if (!warnedBusyHandlers) {
+                                warnedBusyHandlers = true;
+                                serial.writeLine("cognicap: handlers wedged, dropping events");
+                            }
+                            continue;
+                        }
+                        busyHandlerFibers += 1;
+                        control.inBackground(function () {
+                            dispatch(t, tok);
+                            busyHandlerFibers -= 1;
+                        });
                     } else {
                         basic.pause(5);
                     }
@@ -290,6 +306,12 @@ namespace robotPuCap {
             // Poll watchdog: reset when reads stop succeeding after they once
             // worked. If packets never arrived at all, warn over serial instead
             // of reboot-looping (the cap is probably just not attached).
+            // Also reaps wedged handler fibers: if HANDLER_FIBER_MAX handler
+            // fibers stay wedged for WEDGED_REBOOT_MS, a reset is the only way
+            // to reclaim their stacks (CODAL cannot kill a parked fiber). A
+            // full minute of maxed-out handlers is already a pathological
+            // state, so rebooting is the safe recovery.
+            let wedgedSince = 0;
             control.inBackground(function () {
                 while (self.enabled) {
                     basic.pause(1000);
@@ -301,6 +323,16 @@ namespace robotPuCap {
                     } else if (!everOk && input.runningTime() > 10000 && !warnedNoDevice) {
                         warnedNoDevice = true;
                         serial.writeLine("cognicap: no i2c packets yet - is the cap connected?");
+                    }
+                    if (busyHandlerFibers >= HANDLER_FIBER_MAX) {
+                        if (wedgedSince == 0) wedgedSince = input.runningTime();
+                        if (input.runningTime() - wedgedSince > WEDGED_REBOOT_MS) {
+                            serial.writeLine("cognicap: handler fibers wedged too long, resetting");
+                            basic.pause(100);
+                            control.reset();
+                        }
+                    } else {
+                        wedgedSince = 0;
                     }
                 }
             });
@@ -388,6 +420,15 @@ namespace robotPuCap {
     // dead until a manual power cycle.
     const WATCHDOG_STALL_MS = 5000;
     const EVENT_QUEUE_MAX = 16;
+    // Per-event handler fibers: a user handler that blocks forever leaks one
+    // fiber but can never stall the dispatcher — once HANDLER_FIBER_MAX are
+    // wedged, further events drop with a serial warning instead of freezing.
+    const HANDLER_FIBER_MAX = 4;
+    // Grace period before the watchdog reclaims wedged handler fibers via a
+    // reset — long enough that legitimately slow handlers are not disturbed.
+    const WEDGED_REBOOT_MS = 60000;
+    let busyHandlerFibers = 0;
+    let warnedBusyHandlers = false;
     let lastOkMs = 0;
     let everOk = false;
     let failCount = 0;

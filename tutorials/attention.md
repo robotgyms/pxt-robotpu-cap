@@ -84,8 +84,8 @@ robotpuVoice.setVoice(VoicePreset.RobotPU)
 
 // wake word — eyes flash even before "p u" is heard
 robotPuCap.onWakeWord(function () {
-    robotPuPro.leftEyeBright(0.1)
-    robotPuPro.rightEyeBright(0.1)
+    robotPuPro.leftEyeBright(0.05)
+    robotPuPro.rightEyeBright(0.05)
 })
 // VoiceAction tokens are NOT the same numbers as robotPuPro.Action
 // (voice "walk" is 14, Action.Walk is 10), so dictionaries translate
@@ -202,6 +202,7 @@ robotPuCap.onI2CMessage(16, function () {
 
 ## Tuning
 
+- **Never block inside voice handlers.** `on any voice command` runs on a single shared dispatch fiber — one handler that never returns silently kills every later command (no panic, no watchdog reset). `say`, `sing`, `say and wait`, `start ... and wait`, and `music ... UntilDone` can all block. Keep handlers short: set a flag or variable, then do the slow work in a `forever` loop — e.g. `pendingPhrase = voicePhrase[cmd]` in the handler, `robotpuVoice.say(pendingPhrase)` in `forever`. See `pxt-robotpu-voice/ARCHITECTURE.md`.
 - `attentiveUntil` (`+ 30000`): how long the robot keeps tracking after `p u` — 30 s here, much longer than the firmware's 10 s command window. Saying `p u` again re-arms it — that is what makes "keep saying p u" produce continuous attention. Lower it if the robot should relax sooner.
 - `trackGain` (0.05) and `trackSpeed` (0.3): head-tracking gains passed to `head track` — raise `trackGain` for a snappier head, lower it to stop oscillation.
 - `head track` handles the lost-face behaviour itself: it coasts for up to ~1 s (decaying the smoothed angles), recentres for another second, then keeps the eyes at their brightest "looking for you" blink.
