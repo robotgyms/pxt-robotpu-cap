@@ -83,5 +83,10 @@
   "{id:group}Soccer": "Soccer",
   "{id:group}Tracking": "Tracking",
   "{id:group}Vision": "Vision",
-  "{id:group}Voice": "Voice"
+  "{id:group}Voice": "Voice",
+  "robotPuCap.VoiceAction.StepLeft|block": "step left",
+  "robotPuCap.VoiceAction.StepRight|block": "step right",
+  "robotPuCap.qrText|block": "QR text",
+  "robotPuCap.onQrText|block": "on QR code text",
+  "robotPuCap.qrTextSeek|block": "QR text seek %offset"
 }

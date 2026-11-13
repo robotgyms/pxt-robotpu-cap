@@ -26,6 +26,8 @@ namespace robotPuCap {
     const EVT_FACE = 0x20;        // 0x20-0xFF vision / detection
     const EVT_SOCCER_BALL = 0x21;
     const EVT_SOCCER_GOAL = 0x22;
+    const EVT_QR = 0x23;
+    const EVT_QR_TEXT = 0x24;   // QR decoded-text chunk packets
 
     // Packet flags
     const VALID = 1 << 0;
@@ -39,7 +41,7 @@ namespace robotPuCap {
     const SVC_OFF = 0;
     const SVC_ON = 1;
     const SVC_ERR = 2;
-    const KNOWN_SERVICES = [EVT_WIFI, EVT_CAMERA, EVT_VOICE, EVT_SENTIMENT, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL];
+    const KNOWN_SERVICES = [EVT_WIFI, EVT_CAMERA, EVT_VOICE, EVT_SENTIMENT, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL, EVT_QR];
 
     // Packet parsing helpers
     function i16(buf: Buffer, offset: number): number {
@@ -65,7 +67,9 @@ namespace robotPuCap {
         //% block="soccer ball"
         Ball = EVT_SOCCER_BALL,
         //% block="soccer goal"
-        Goal = EVT_SOCCER_GOAL
+        Goal = EVT_SOCCER_GOAL,
+        //% block="QR code"
+        Qr = EVT_QR
     }
 
     /**
@@ -159,7 +163,11 @@ namespace robotPuCap {
         //% block="video"
         Video = 33,
         //% block="photo"
-        Photo = 34
+        Photo = 34,
+        //% block="step left"
+        StepLeft = 35,
+        //% block="step right"
+        StepRight = 36
     }
 
     /**
@@ -366,6 +374,12 @@ namespace robotPuCap {
             if (p.type < 0x20 && p.type != EVT_IDLE && p.type != EVT_VOICE) {
                 if (lastEventSeq[p.type] === p.seq) return;
                 lastEventSeq[p.type] = p.seq;
+            }
+            // QR text chunks are consumed here, not dispatched per-chunk —
+            // an event fires only once a full payload is reassembled.
+            if (p.type == EVT_QR_TEXT) {
+                qrTextChunk(buf, p);
+                return;
             }
             // Queue the event instead of dispatching inline: user handlers must
             // never block the I2C poll fiber.
@@ -609,6 +623,39 @@ namespace robotPuCap {
     export function lastObjectValid(): boolean { return cap ? cap.packet.valid : false; }
 
     /**
+     * The decoded text of the primary QR code.
+     * Empty until the full payload has been received.
+     */
+    //% block="QR text"
+    //% group="Vision"
+    export function qrText(): string {
+        return qrDecodedText;
+    }
+
+    /**
+     * Run code when a QR code's full text has been received.
+     * @param handler the code to run
+     */
+    //% block="on QR code text"
+    //% group="Events"
+    //% weight=95 blockGap=8
+    export function onQrText(handler: () => void): void {
+        handlers[EVT_QR_TEXT] = handler;
+    }
+
+    /**
+     * Rewind the QR text stream to a byte offset (0 re-streams from the start).
+     * Use after a missed chunk instead of waiting for the wrap-around.
+     * @param offset byte offset to seek to
+     */
+    //% block="QR text seek %offset"
+    //% group="Vision"
+    //% advanced=true
+    export function qrTextSeek(offset: number): void {
+        robotPuPro.i2cWriteBuffer(ESP32_ADDR, Buffer.fromArray([0x0B, offset & 0xFF]), false);
+    }
+
+    /**
      * Print the latest I2C packet to serial.
      */
     //% block="print I2C packet"
@@ -656,6 +703,42 @@ namespace robotPuCap {
     let attentionCount: number[] = [];
     let attLastState = -1;
     let attLastAction = -1;
+
+    // QR text stream (EVT_QR_TEXT): reassembles the primary code's payload
+    // from 11-byte chunks keyed by (text_id, total_len). See I2C_PROTOCOL §3.4.
+    let qrTextId = -1;
+    let qrTextTotal = 0;
+    let qrTextBuf: Buffer = pins.createBuffer(0);
+    let qrChunksSeen: boolean[] = [];
+    let qrFilled = 0;
+    let qrDecodedText = "";
+
+    function qrTextChunk(buf: Buffer, p: CogniCapPacket): void {
+        if (p.count != qrTextId || p.score != qrTextTotal) {
+            // New text version: start a fresh reassembly buffer.
+            qrTextId = p.count;
+            qrTextTotal = p.score;
+            qrTextBuf = pins.createBuffer(p.score);
+            qrChunksSeen = [];
+            qrFilled = 0;
+        }
+        if (qrTextTotal <= 0) return;
+        let offset = buf[6];
+        if (offset >= qrTextTotal) return;
+        let n = Math.min(11, qrTextTotal - offset);
+        let ci = Math.floor(offset / 11);
+        if (!qrChunksSeen[ci]) {
+            qrChunksSeen[ci] = true;
+            qrFilled += n;
+        }
+        for (let i = 0; i < n; i++) {
+            qrTextBuf.setNumber(NumberFormat.UInt8LE, offset + i, buf[7 + i]);
+        }
+        if (qrFilled >= qrTextTotal) {
+            qrDecodedText = qrTextBuf.toString();
+            enqueueEvent(EVT_QR_TEXT, qrTextId);
+        }
+    }
     let attLastPacketSeq: number[] = [];
 
     /**
@@ -721,7 +804,7 @@ namespace robotPuCap {
     //% objects.shadow="lists_create_with"
     //% group="Setup"
     export function enableDetections(objects: CapObject[]): void {
-        let all = [CapObject.Face, CapObject.Ball, CapObject.Goal];
+        let all = [CapObject.Face, CapObject.Ball, CapObject.Goal, CapObject.Qr];
         let c = ensureCap();
         for (let i = 0; i < all.length; i++) {
             let o = all[i];

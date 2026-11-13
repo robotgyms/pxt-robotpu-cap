@@ -91,8 +91,57 @@ For these packets `x_mm..pitch` are zero. `count` holds the action token or a st
 | `EVT_FACE`        | `0x20` | Face detection; populate all object fields           |
 | `EVT_SOCCER_BALL` | `0x21` | Soccer ball detection                                |
 | `EVT_SOCCER_GOAL` | `0x22` | Soccer goal detection                                |
+| `EVT_QR`          | `0x23` | QR code detection (box only; payload via `0x24`)     |
+| `EVT_QR_TEXT`     | `0x24` | QR decoded-text chunk — **not** an object packet     |
 
-Any `type >= 0x20` is parsed as a vision packet. New objects can be added by allocating a new byte in this range **without** changing the micro:bit parser.
+Any `type >= 0x20` is parsed as a vision packet. New objects can be added by allocating a new byte in this range **without** changing the micro:bit parser — except `0x24`, which is a data-stream packet and must be special-cased before the generic object-field parse (see §3.4).
+
+### 3.4 QR code detection (`EVT_QR` object + `EVT_QR_TEXT` stream)
+
+`EVT_QR` (`0x23`) is a normal vision packet: `count` = number of decoded codes,
+`w`/`h`/`yaw`/`pitch` describe the largest ("primary") code. QR has no depth
+estimate, so `x_mm`/`y_mm`/`z_mm` are always `0` and `score` is fixed `100`.
+
+`EVT_QR_TEXT` (`0x24`) streams the decoded payload of the primary code in
+18-byte chunks. `count` does **not** carry a chunk index — it is the `text_id`
+version counter:
+
+| Byte(s)        | Field       | Meaning                                                        |
+|----------------|-------------|----------------------------------------------------------------|
+| 4 (`count`)    | `text_id`   | version counter; increments each time the decoded text changes |
+| 5 (`score`)    | `total_len` | total payload length in bytes (max `255`, longer is truncated) |
+| 6              | `offset`    | byte offset of this chunk inside the payload                   |
+| 7-17           | `data`      | up to **11** payload bytes starting at `offset`; **no NUL terminator** |
+
+Chunk "index" is implied: `offset` is always a multiple of 11 (`chunk_index =
+offset / 11`). `seq` increments on every packet served, as usual.
+
+**Streaming model.** The cap serves chunks on demand during normal host polling:
+after each `0x24` serve it auto-advances the stream cursor by the bytes sent and
+wraps to `0` at the end, so the text re-streams cyclically while it remains
+current. When the decoded text changes, `text_id` bumps and the cursor resets
+to `0`. Disabling QR detection stops the stream and clears the text.
+
+**Reassembly.** For each `text_id`, allocate `total_len` bytes; copy each chunk
+to `offset`; the text is complete once all `total_len` positions are filled.
+Duplicate chunks (re-served after wrap) overwrite identical positions and can be
+ignored or used to heal gaps. Payload is binary-safe — assemble by offset/length,
+never by scanning for `0x00`.
+
+**Short-code fast path.** Texts with `total_len <= 11` arrive complete in a
+single packet (`offset=0`) — just copy bytes `7 .. 6+total_len` once per new
+`seq`/`text_id`; no chunking logic needed. This is not a separate
+length-prefixed format; it is the same chunked layout degenerating to one
+packet.
+
+**Host rewind.** I2C write `[CMD_QR_TEXT_SEEK=0x0B, offset]` moves the stream
+cursor; `[0x0B, 0]` forces a re-stream from the beginning (e.g. after a missed
+chunk when the host doesn't want to wait for the next wrap-around).
+
+**Limitations.** Only the primary (largest) code's text streams; other codes in
+the same frame are counted in the `0x23` packet but their payloads are not
+streamed. `text_id` wraps at 256 — treat `(text_id, total_len)` together as the
+identity.
 
 ## 4. Packet Flags
 
@@ -153,6 +202,8 @@ The micro:bit uses `count` as an action token whenever `isActionToken(type)` is 
 | `Record`      | `32`   | record            |
 | `Video`       | `33`   | video             |
 | `Photo`       | `34`   | photo             |
+| `StepLeft`    | `35`   | step left         |
+| `StepRight`   | `36`   | step right        |
 
 > `Attention` (`30`) is the "p u" / "pew" attention prefix — both phrases forward action `30`. `Record`, `Video` and `Photo` also run the capture on the cap itself; the token is still forwarded so the micro:bit can react.
 
@@ -210,6 +261,10 @@ The micro:bit treats the message type as the service key. `type` is therefore on
 - `EVT_FACE` (`0x20`)
 - `EVT_SOCCER_BALL` (`0x21`)
 - `EVT_SOCCER_GOAL` (`0x22`)
+- `EVT_QR` (`0x23`)
+
+A separate host command `CMD_QR_TEXT_SEEK` (`0x0B`) with payload `[0x0B, offset]`
+positions the QR text-stream cursor (see §3.4); it is not a service enable.
 
 ### Micro:bit service keeper
 

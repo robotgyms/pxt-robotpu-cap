@@ -65,5 +65,10 @@
   "{id:group}Soccer": "足球",
   "{id:group}Tracking": "追蹤",
   "{id:group}Vision": "視覺",
-  "{id:group}Voice": "語音"
+  "{id:group}Voice": "語音",
+  "robotPuCap.VoiceAction.StepLeft|block": "左移步",
+  "robotPuCap.VoiceAction.StepRight|block": "右移步",
+  "robotPuCap.qrText|block": "QR 碼文字",
+  "robotPuCap.onQrText|block": "當收到 QR 碼文字",
+  "robotPuCap.qrTextSeek|block": "QR 碼文字定位 %offset"
 }

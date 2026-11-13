@@ -65,5 +65,10 @@
   "{id:group}Soccer": "足球",
   "{id:group}Tracking": "追踪",
   "{id:group}Vision": "视觉",
-  "{id:group}Voice": "语音"
+  "{id:group}Voice": "语音",
+  "robotPuCap.VoiceAction.StepLeft|block": "左移步",
+  "robotPuCap.VoiceAction.StepRight|block": "右移步",
+  "robotPuCap.qrText|block": "二维码文本",
+  "robotPuCap.onQrText|block": "当收到二维码文本",
+  "robotPuCap.qrTextSeek|block": "二维码文本定位 %offset"
 }
