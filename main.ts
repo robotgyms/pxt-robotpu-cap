@@ -277,7 +277,7 @@ namespace robotPuCap {
                 while (self.enabled) {
                     for (let i = 0; i < ATTENTION_TYPES.length; i++) {
                         let t = ATTENTION_TYPES[i];
-                        attentionCount[t] = (attentionCount[t] || 0) * ATTENTION_DECAY;
+                        attentionCount[t] = (attentionCount[t] || 0) * attDecay;
                     }
                     basic.pause(1000);
                 }
@@ -508,7 +508,9 @@ namespace robotPuCap {
         const reward = sentimentReward(token);
         if (attLastState >= 0 && attLastAction >= 0) {
             const old = getQValue(attLastState, attLastAction);
-            setQValue(attLastState, attLastAction, old + reward);
+            // bounded update: Q slides toward recent reward, so one loud
+            // opinion can't lock a behavior in forever
+            setQValue(attLastState, attLastAction, old + qAlpha * (reward - old));
         }
         if (reward > 0) {
             robotPuPro.leftEyeBright(0.01 * reward);
@@ -691,15 +693,20 @@ namespace robotPuCap {
     // Q-table state
     let maxStates = 64;
     let maxActions = 8;
+    let qAlpha = 0.4;      // learning rate — how fast new evidence moves Q
+    let qGamma = 0.5;      // discount — values the next state half as much
     let qTable: number[][] = [];
 
     // Attention-attractor state
     let attSoundThreshold = 120;
+    let attWFace = 1;        // attention reward weight: face seen
+    let attWVoice = 2;       // attention reward weight: voice/wake events
+    let attWSound = 1;       // attention reward weight: loud sound spikes
+    let attDecay = 0.68;     // per-second decay applied to attention counters
     let attExplorePercent = 25;
     // Attention counters keyed by event type (EVT_VOICE, EVT_WAKE, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL) plus sound
     const ATT_SOUND = 0x30;
     const ATTENTION_TYPES = [EVT_VOICE, EVT_WAKE, EVT_FACE, EVT_SOCCER_BALL, EVT_SOCCER_GOAL, ATT_SOUND];
-    const ATTENTION_DECAY = 0.68;
     let attentionCount: number[] = [];
     let attLastState = -1;
     let attLastAction = -1;
@@ -1033,6 +1040,53 @@ namespace robotPuCap {
     }
 
     /**
+     * Tune Q-learning temperament: learning rate (0..1, higher = adapts
+     * faster, forgets faster) and discount (0..1, higher = cares more
+     * about what an action leads to next). Defaults 0.4 / 0.5.
+     * @param alpha learning rate 0..1
+     * @param gamma discount factor 0..1
+     */
+    //% block="set Q learning rate %alpha discount %gamma"
+    //% alpha.min=0 alpha.max=1 alpha.defl=0.4
+    //% gamma.min=0 gamma.max=1 gamma.defl=0.5
+    //% group="AI"
+    export function setQLearning(alpha: number, gamma: number): void {
+        qAlpha = Math.max(0, Math.min(1, alpha));
+        qGamma = Math.max(0, Math.min(1, gamma));
+    }
+
+    /**
+     * Set what counts as attention for the reward signal: face detections,
+     * voice/wake events, and loud-sound spikes each contribute their weight
+     * per observation. Defaults 1 / 2 / 1 (voice counts double — talking
+     * to the robot is stronger attention than a glance).
+     * @param face weight per face observation
+     * @param voice weight per voice/wake event
+     * @param sound weight per loud-sound spike
+     */
+    //% block="set attention rewards face %face voice %voice sound %sound"
+    //% face.defl=1 voice.defl=2 sound.defl=1
+    //% group="AI"
+    export function setAttentionRewardWeights(face: number, voice: number, sound: number): void {
+        attWFace = face;
+        attWVoice = voice;
+        attWSound = sound;
+    }
+
+    /**
+     * Set how fast attention counters decay per second (0..1). Higher =
+     * longer memory of recent attention; lower = the robot reacts only to
+     * very recent engagement. Default 0.68.
+     * @param decay retention per second 0..1
+     */
+    //% block="set attention decay %decay"
+    //% decay.min=0 decay.max=1 decay.defl=0.68
+    //% group="AI"
+    export function setAttentionDecay(decay: number): void {
+        attDecay = Math.max(0, Math.min(1, decay));
+    }
+
+    /**
      * Set the sound-level threshold for counting attention spikes.
      * @param threshold sound level 0..255
      */
@@ -1084,7 +1138,9 @@ namespace robotPuCap {
     //% block="attention reward"
     //% group="AI"
     export function attentionReward(): number {
-        return (attentionCount[EVT_FACE] || 0) + ((attentionCount[EVT_VOICE] || 0) + (attentionCount[EVT_WAKE] || 0)) * 2 + (attentionCount[ATT_SOUND] || 0);
+        return (attentionCount[EVT_FACE] || 0) * attWFace
+             + ((attentionCount[EVT_VOICE] || 0) + (attentionCount[EVT_WAKE] || 0)) * attWVoice
+             + (attentionCount[ATT_SOUND] || 0) * attWSound;
     }
 
     /**
@@ -1098,8 +1154,12 @@ namespace robotPuCap {
         let s = attentionState();
         let reward = attentionReward();
         if (attLastState >= 0 && attLastAction >= 0) {
-            let old = getQValue(attLastState, attLastAction);
-            setQValue(attLastState, attLastAction, old + reward);
+            // TD update: Q(s,a) += α·(r + γ·max_a'Q(s',a') − Q(s,a)) —
+            // bounded, forgets gradually, no runaway accumulation
+            const old = getQValue(attLastState, attLastAction);
+            const future = getQValue(s, getBestAction(s));
+            setQValue(attLastState, attLastAction,
+                      old + qAlpha * (reward + qGamma * future - old));
         }
         resetAttentionCounters();
         let a = getBestAction(s);
