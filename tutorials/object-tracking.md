@@ -118,10 +118,10 @@ if (robotPuCap.objectDetected(robotPuCap.CapObject.Goal)) {
 
 ## Adding more objects later
 
-When the camera learns new objects, you can add them to the `CapObject` enum in `main.ts` and use the same pattern:
+When the camera learns new objects, use the matching `CapObject` value — for example `Qr` for QR codes:
 
 ```typescript
-if (robotPuCap.objectDetected(robotPuCap.CapObject.YourNewObject)) {
+if (robotPuCap.objectDetected(robotPuCap.CapObject.Qr)) {
     // track it
 }
 ```
