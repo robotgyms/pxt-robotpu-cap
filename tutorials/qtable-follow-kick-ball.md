@@ -20,7 +20,7 @@ let currentPitch = 0
 let targets: number[] = []
 let distance = 150
 let speedGain = 0.4
-let turnGain = -0.07
+let turnGain = 0.07
 let decay = 0.9
 let lostTimeout = 5000
 let headGain = 0.08
@@ -164,7 +164,7 @@ let sideStepDone = 0
 
 // Feedback loop state
 let speedGain = 0.4
-let turnGain = -0.07
+let turnGain = 0.07
 let distance = 150
 let followSpeed = 0
 let followTurn = 0

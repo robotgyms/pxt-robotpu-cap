@@ -35,7 +35,7 @@ basic.forever(function () {
     if (robotPuCap.getBestAction(state) == KICK) {
         robotPuPro.start(robotPuPro.Action.Kick, 1)
     } else {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2, 0.76)
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2, 0.76)
     }
     basic.pause(30)
 })

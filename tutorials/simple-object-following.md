@@ -18,7 +18,7 @@ robotPuCap.startCogniCap()
 robotPuCap.enableDetections([robotPuCap.CapObject.Face])
 
 basic.forever(function () {
-    robotPuCap.followObject(robotPuCap.CapObject.Face, 500, 0.4, -0.2, 0.76)
+    robotPuCap.followObject(robotPuCap.CapObject.Face, 500, 0.4, 0.2, 0.76)
     basic.pause(10)
 })
 ```
@@ -27,7 +27,7 @@ basic.forever(function () {
 
 - `distance` (500 mm): where it tries to stop — closer and it backs up a little.
 - `speedGain` (0.4): how fast it approaches per mm of distance error.
-- `turnGain` (-0.2): how sharply it turns to keep the object centred (the negative sign steers *toward*).
+- `turnGain` (0.2): how sharply it turns to keep the object centred (positive steers *toward*, negative steers away).
 - `decay` (0.76): how much it coasts while the object flickers out of view.
 - If the object is lost too long, `follow` stops driving — the robot waits where it is.
 

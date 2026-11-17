@@ -25,7 +25,7 @@ Make Robot PU track your face with its head, dance while it sees you, and occasi
    - `robotPuPro.dance()` keeps the body moving while the head tracks.
    - Every loop there is a small random chance (`randint(0, 30) == 1`) the robot will pick a random phrase from `talkContent` and say it.
    - `talkContent` now holds 30 conversation starters grouped into categories: *Casual & Everyday*, *Work, Tech & Projects*, *Interests & Curiosity*, *Events, Meetups & Networking*, and *Quick & Thought-Provoking*.
-   - The head is stepped toward `currentYaw + smoothYaw * trackGain` and `currentPitch + smoothPitch * trackGain` with a speed proportional to `trackSpeed`.
+   - The head is stepped toward `currentYaw - smoothYaw * trackGain` and `currentPitch + smoothPitch * trackGain` with a speed proportional to `trackSpeed`.
 5. If the face is lost for less than the last measured detection interval, the smoothed angles decay by `0.95` and the eyes blink once. The robot keeps dancing.
 6. If the face is lost for longer than the last detection interval but less than `lostTimeout` (3000 ms), the head is recentred (`smoothYaw = 0`, `smoothPitch = 0`), the eyes blink twice, and the robot stands still.
 7. After `lostTimeout`, the robot calls `robotPuPro.explore()` to look around and blinks five times to show it is searching.
@@ -182,7 +182,7 @@ basic.forever(function () {
     }
     // Move head toward the object
     robotPuPro.start(robotPuPro.Action.API, 0)
-    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw - smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)
 })

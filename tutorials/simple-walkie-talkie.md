@@ -23,7 +23,7 @@ robotpuVoice.setVoice(VoicePreset.RobotPU)
 
 basic.forever(function () {
     if (robotPuCap.objectDetected(robotPuCap.CapObject.Face)) {
-        robotPuCap.followObject(robotPuCap.CapObject.Face, 500, 0.4, -0.2, 0.76)
+        robotPuCap.followObject(robotPuCap.CapObject.Face, 500, 0.4, 0.2, 0.76)
         if (randint(0, 199) == 1) {
             robotpuVoice.say(lines[randint(0, lines.length - 1)])
         }

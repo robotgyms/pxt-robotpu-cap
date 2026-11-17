@@ -30,10 +30,10 @@ robotPuCap.enableDetections([robotPuCap.CapObject.Ball]);
 
 basic.forever(function () {
     if (robotPuCap.objectDetected(robotPuCap.CapObject.Ball)) {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2, 0.7);
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2, 0.7);
     } else {
         robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2, 0.7);
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2, 0.7);
     }
     basic.pause(5);
 });
@@ -43,6 +43,6 @@ basic.forever(function () {
 
 - `distance` (150 in the example) is the target stop distance in mm.
 - `speedGain` (0.4) controls how fast the robot moves toward the ball. Reduce it if it overshoots.
-- `turnGain` (-0.2) controls how sharply it turns to keep the ball centred. Make it less negative if the robot wobbles.
+- `turnGain` (0.2) controls how sharply it turns to keep the ball centred. Positive steers toward the ball, negative steers away. Lower it if the robot wobbles.
 - `decay` (0.7) is the follow-through multiplier while the ball is briefly out of view. Closer to 1 keeps the robot moving longer; closer to 0 stops it sooner. It must be between 0.001 and 1.
 - If the ball is lost, `search for %object` scans the head through the search pattern while `follow object` decays to a stop.

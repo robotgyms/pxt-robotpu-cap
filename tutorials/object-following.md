@@ -52,7 +52,7 @@ let currentPitch = 0
 let currentYaw = 0
 let distance = 150
 let speedGain = 0.4
-let turnGain = -0.07
+let turnGain = 0.07
 let decay = 0.9
 let lostTimeout = 5000
 let headGain = 0.08
@@ -108,7 +108,7 @@ Replace `CapObject.Ball` with `CapObject.Face` or `CapObject.Goal` to follow a d
 
 - `distance` (150 in the example) is the target stop distance in mm.
 - `speedGain` (0.4) controls how fast the robot moves toward the object. It must be between 0.001 and 2.
-- `turnGain` (-0.07) controls how sharply it turns to keep the object centred. It must be between -1 and 1. Make it less negative if the robot wobbles.
+- `turnGain` (0.07) controls how sharply it turns to keep the object centred. It must be between -1 and 1; positive steers toward the object, negative steers away. Lower it if the robot wobbles.
 - `decay` (0.9) is the follow-through multiplier while the object is briefly out of view. It must be between 0.001 and 1. Closer to 1 keeps the robot moving longer; closer to 0 stops it sooner.
 - `lostTimeout` (5000) is how long the robot keeps decaying before backing up after losing the object.
 - `0.9`/`0.1` yaw/pitch smoothing: give the `old` value more weight for smoother, slower motion; give the `new` value more weight for faster, jitterier motion.

@@ -82,7 +82,7 @@ let lostTimeout = 6000
 let decay = 0.7
 let turnDecay = 0.9
 let speedGain = 0.2
-let turnGain = -0.2
+let turnGain = 0.2
 // tweak it for tracking speed, high value will cause oscillation
 let trackSpeed = 0.3
 // tweak it for accelration speed, high value will cause oscillation
@@ -161,7 +161,7 @@ basic.forever(function () {
     targets = robotPuPro.servoTargets()
     currentYaw = targets[4]
     currentPitch = targets[5]
-    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw - smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     basic.pause(5)
 })
@@ -185,7 +185,7 @@ basic.forever(function () {
 
 - `SOCIAL_DIST` (1000 mm): the personal-space bubble. Make it bigger for a shy robot, smaller for a cuddly one.
 - `speedGain` (0.2): how hard the robot chases or retreats. `(faceDist - 1000) * 0.2` clamps at `±6`, so beyond ~1030 mm error it is already at full speed — lower the gain for a gentler approach.
-- `turnGain` (−0.2): body turn strength. The negative sign turns toward the face; raise the magnitude to rotate faster, lower it to reduce wobble.
+- `turnGain` (0.2): body turn strength. Positive turns toward the face; raise the magnitude to rotate faster, lower it to reduce wobble.
 - `decay` (0.7) / `turnDecay` (0.9): the follow-through fade when the face blinks out of view. Speed drops faster than turn so the robot stops sliding but keeps facing the last direction.
 - `lostTimeout` (6000 ms): how long the robot coasts before it stops and scans. Raise it if your camera drops faces often.
 - The `0.8` / `1.1` hysteresis band on `tooClose`: widen it if the robot flips between compliments and complaints at the bubble edge.

@@ -24,7 +24,7 @@ basic.forever(function () {
         if (robotPuCap.objectY(robotPuCap.CapObject.Face) < COMFORT) {
             robotPuPro.walk(-2, 0)   // too close — back away
         } else {
-            robotPuCap.followObject(robotPuCap.CapObject.Face, COMFORT, 0.4, -0.2, 0.76)
+            robotPuCap.followObject(robotPuCap.CapObject.Face, COMFORT, 0.4, 0.2, 0.76)
         }
     }
     basic.pause(30)

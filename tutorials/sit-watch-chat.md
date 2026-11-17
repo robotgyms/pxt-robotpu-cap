@@ -23,7 +23,7 @@ Make Robot PU sit in one place, scan for faces, and start a conversation when it
 5. In the main loop:
    - `robotPuPro.servoTargets()` reads the current head angles (`index 4` is yaw, `index 5` is pitch).
    - When a face is detected, the robot softens its eyes, reads `yaw` and `pitch`, and smooths the angles with a low-pass filter.
-   - The head is stepped toward `currentYaw + smoothYaw * trackGain` and `currentPitch + smoothPitch * trackGain`.
+   - The head is stepped toward `currentYaw - smoothYaw * trackGain` and `currentPitch + smoothPitch * trackGain`.
    - Every loop there is a small random chance (`randint(0, 68) == 1`) the robot will pick a random phrase from `talkContent` and say it.
    - When no face is detected, the robot adds a small random step to the current head angles every 1.5-3 seconds, then clamps the result to `yaw [-60, 60]` and `pitch [-60, 15]`. It smooths the difference between the current position and the new target, then steps the head toward it.
    - The eyes blink while searching so you can tell it is active.
@@ -180,7 +180,7 @@ basic.forever(function () {
     }
     // Move head toward the target
     robotPuPro.start(robotPuPro.Action.API, 0)
-    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw - smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     if (randint(0, 3000) == 1) {
         serial.writeLine('battery ' + robotPuPro.batteryLevel() + " percent")

@@ -1197,7 +1197,7 @@ namespace robotPuCap {
      * Switches the robot to API action mode (gait stops in its last pose)
      * so no running action fights the head servos.
      * @param object the object to track
-     * @param trackGain position offset gain (higher = snappier, may oscillate)
+     * @param trackGain position offset gain (higher = snappier, may oscillate), if < 0, it will untrack object.
      * @param trackSpeed servo step speed (higher = faster, may oscillate)
      */
     //% block="head track %object with gain %trackGain and speed %trackSpeed"
@@ -1238,7 +1238,9 @@ namespace robotPuCap {
         trackYawLocks[object] = smoothYaw;
         trackPitchLocks[object] = smoothPitch;
         let targets = robotPuPro.servoTargets();
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, targets[4] + smoothYaw * trackGain, Math.max(2, Math.abs(smoothYaw * trackSpeed)));
+        // yaw >0 = object on the right; HeadYaw servo +deg = look left,
+        // so the target subtracts the yaw error to face the object.
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, targets[4] - smoothYaw * trackGain, Math.max(2, Math.abs(smoothYaw * trackSpeed)));
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, targets[5] + smoothPitch * trackGain, Math.max(2, Math.abs(smoothPitch * trackSpeed)));
     }
 
@@ -1252,17 +1254,17 @@ namespace robotPuCap {
      * Track an object with the head and compute walk speed/turn for the target distance.
      * @param object the object to follow
      * @param distance target distance to the object in millimetres
-     * @param speedGain multiplier for forward speed based on distance error
-     * @param turnGain multiplier for turning based on yaw error
+     * @param speedGain multiplier for forward speed based on distance error. If < 0, it will avoid objects
+     * @param turnGain multiplier for turning based on yaw error. If < 0, it will avoid objects
      * @param decay follow-through decay multiplier while the object is temporarily out of view
      */
     //% block="follow %object at %distance mm with speed gain %speedGain, turn gain %turnGain and decay %decay"
     //% group="Action"
     //% distance.defl=150
     //% speedGain.min=0.001 speedGain.max=2 speedGain.defl=0.4
-    //% turnGain.min=-1 turnGain.max=1 turnGain.defl=-0.2
+    //% turnGain.min=-1 turnGain.max=1 turnGain.defl=0.2
     //% decay.min=0.001 decay.max=1 decay.defl=0.76
-    export function followObject(object: CapObject, distance: number, speedGain: number = 0.4, turnGain: number = -0.2, decay: number = 0.76): void {
+    export function followObject(object: CapObject, distance: number, speedGain: number = 0.4, turnGain: number = 0.2, decay: number = 0.76): void {
         let c = ensureCap();
         let now = input.runningTime();
         let p = trackPitchLocks[object] || 0;
@@ -1276,6 +1278,8 @@ namespace robotPuCap {
             robotPuPro.leftEyeBright(0.01);
             robotPuPro.rightEyeBright(0.01);
             followSpeed = Math.max(-6, Math.min(6, (c.packet.y_mm - distance) * speedGain));
+            // yaw >0 = object right, walk(+turn) = turn right, so
+            // turnGain >0 steers toward the object and <0 steers away.
             followTurn = 0.8 * followTurn + 0.2 * Math.max(-1, Math.min(1, y * turnGain));
         } else if (now - followLastTime < LOST_TIMEOUT_MS) {
             // Follow through briefly when the object is temporarily out of view.

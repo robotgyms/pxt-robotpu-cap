@@ -33,7 +33,7 @@ basic.forever(function () {
     let goalSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Goal);
 
     if (ballSeen && goalSeen) {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2);
         // Once close to the ball, turn toward the goal and kick.
         if (robotPuCap.objectY(robotPuCap.CapObject.Ball) < 200) {
             let goalYaw = Math.atan2(
@@ -46,7 +46,7 @@ basic.forever(function () {
             }
         }
     } else if (ballSeen) {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2);
     } else {
         robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
         robotPuPro.walk(0, 1);
@@ -61,4 +61,4 @@ basic.forever(function () {
 - `200` is the distance in mm where the robot starts aligning to the goal. Increase it for an earlier turn, decrease it to get closer before kicking.
 - `15` is the kick angle tolerance in degrees. Lower it for a more accurate kick, raise it to kick sooner.
 - `150` in `follow object` is the target distance from the ball. Adjust for your field.
-- `0.4` speed gain and `-0.2` turn gain control the approach. Tune these if the robot overshoots or wobbles.
+- `0.4` speed gain and `0.2` turn gain control the approach. Tune these if the robot overshoots or wobbles.

@@ -201,7 +201,7 @@ basic.forever(function () {
                 robotPuPro.blink(3)
             }
             // Move head toward the object
-            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.3, Math.abs(smoothYaw * trackSpeed)))
+            robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw - smoothYaw * trackGain, Math.max(0.3, Math.abs(smoothYaw * trackSpeed)))
             robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.3, Math.abs(smoothPitch * trackSpeed)))
         }
         basic.pause(10)

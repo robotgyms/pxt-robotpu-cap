@@ -20,7 +20,7 @@ robotPuCap.enableDetections([robotPuCap.CapObject.Ball])
 
 basic.forever(function () {
     if (robotPuCap.objectDetected(robotPuCap.CapObject.Ball)) {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2, 0.76)
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2, 0.76)
     } else {
         robotPuCap.searchForObject(robotPuCap.CapObject.Ball)
     }

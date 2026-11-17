@@ -23,12 +23,12 @@ Build a walkie-talkie robot that follows a person's face with its head, walks to
 4. In the main loop:
    - When a face is detected, the robot dims its eyes, reads `yaw`, `pitch`, and `y_mm` from the face packet, and smooths the angles.
    - `walkSpeed` is computed from `(y_mm - 500) * 0.2` and clamped to `[-6, 6]`. The robot moves forward if the face is further than 500 mm, and backs up if it is closer.
-   - `walkTurn` is computed from `smoothYaw * -0.2` and clamped to `[-1, 1]`. A low-pass filter blends it with the previous turn so the body turns smoothly toward the face.
+   - `walkTurn` is computed from `smoothYaw * 0.2` and clamped to `[-1, 1]`. A low-pass filter blends it with the previous turn so the body turns smoothly toward the face.
    - `smoothYaw -= walkTurn` subtracts the body turn from the head target so the gaze stays stable while the body turns.
    - `robotPuPro.walk(walkSpeed, walkTurn)` moves the robot.
    - Every loop there is a small random chance (`randint(0, 68) == 1`) the robot will pick a random phrase from `talkContent` and say it.
    - `talkContent` holds 30 conversation starters grouped into categories: *Casual & Everyday*, *Work, Tech & Projects*, *Interests & Curiosity*, *Events, Meetups & Networking*, and *Quick & Thought-Provoking*.
-   - The head is stepped toward `currentYaw + smoothYaw * trackGain` and `currentPitch + smoothPitch * trackGain` with a speed proportional to `trackSpeed`.
+   - The head is stepped toward `currentYaw - smoothYaw * trackGain` and `currentPitch + smoothPitch * trackGain` with a speed proportional to `trackSpeed`.
 5. If the face is lost for less than the larger of the last detection interval or `lostTimeout` (5000 ms), the smoothed angles, `walkSpeed`, and `walkTurn` decay by `0.95`, the eyes blink once, and the robot keeps walking.
 6. If the face is lost for longer than that but less than `2 * lostTimeout`, the head is recentred (`smoothYaw = 0`, `smoothPitch = 0`), the eyes blink twice, and the robot stands still.
 7. After `2 * lostTimeout`, the robot calls `robotPuPro.explore()` to look around and blinks five times to show it is searching.
@@ -169,7 +169,7 @@ basic.forever(function () {
         //serial.writeLine("yaw:" + smoothYaw)
         //serial.writeLine("pitch:" + smoothPitch)
         walkSpeed = Math.max(-6, Math.min(6, (y_mm - 500) * 0.2))
-        walkTurn = (walkTurn + Math.max(-1, Math.min(1, smoothYaw * -0.2))) * 0.5
+        walkTurn = (walkTurn + Math.max(-1, Math.min(1, smoothYaw * 0.2))) * 0.5
         // use the computed walk speed and turn to move the robot
         robotPuPro.walk(walkSpeed, walkTurn)
         smoothYaw -= walkTurn // compensate the walk turn angle
@@ -198,7 +198,7 @@ basic.forever(function () {
     }
     // Move head toward the object
     robotPuPro.start(robotPuPro.Action.API, 0)
-    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+    robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw - smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
     robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     if (randint(0, 3000) == 1) {
         serial.writeLine('battery ' + robotPuPro.batteryLevel() + " percent")
@@ -212,7 +212,7 @@ basic.forever(function () {
 - `trackGain` (0.05): how far the head moves per unit of face angle. Higher values make the head snap to the face faster but may overshoot.
 - `trackSpeed` (0.3): the maximum step speed for the head. Higher values make the head move faster; lower values are smoother.
 - `walkSpeed` gain (0.2): multiplies the distance error `(y_mm - 500)` to set the forward/back-up speed. Increase to approach faster; decrease to move more gently.
-- `walkTurn` gain (`-0.2`): how aggressively the body turns toward the face. The negative sign makes the robot turn toward the side the face is on. Increase the magnitude to turn faster.
+- `walkTurn` gain (`0.2`): how aggressively the body turns toward the face. Positive gain turns toward the side the face is on. Increase the magnitude to turn faster.
 - `walkTurn` smoothing (0.5): the low-pass filter blending factor. Higher values keep the previous turn more, making the robot turn more smoothly.
 - `smoothYaw -= walkTurn`: this compensates the head yaw target for the body turn so the eyes keep looking at the face while the robot turns. If the head lags behind or overshoots, adjust `walkTurn` gain or this compensation.
 - `decay` (0.95): how quickly the head and walking speeds decay when the face is briefly lost. Closer to 1 keeps the previous motion longer.

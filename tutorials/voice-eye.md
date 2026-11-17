@@ -334,7 +334,7 @@ basic.forever(function () {
         currentYaw = targets[4]
         currentPitch = targets[5]
         // Move head toward the face
-        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw + smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
+        robotPuPro.servoStep(robotPuPro.ServoJoint.HeadYaw, currentYaw - smoothYaw * trackGain, Math.max(0.5, Math.abs(smoothYaw * trackSpeed)))
         robotPuPro.servoStep(robotPuPro.ServoJoint.HeadPitch, currentPitch + smoothPitch * trackGain, Math.max(0.5, Math.abs(smoothPitch * trackSpeed)))
     }
     basic.pause(5)
