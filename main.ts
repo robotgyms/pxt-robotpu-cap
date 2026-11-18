@@ -372,6 +372,15 @@ namespace robotPuCap {
             // Idle packets are just "nothing pending" keep-alives — never
             // surface them as events.
             if (p.type == EVT_IDLE) return;
+            // Voice tokens stream continuously while a command is active.
+            // Dispatch on a token change; the same token can re-fire after a
+            // gap so a repeated command is still one event per utterance.
+            if (p.type == EVT_VOICE) {
+                let nowMs = input.runningTime();
+                if (p.count == voiceLastToken && nowMs - voiceLastMs < VOICE_REFIRE_MS) return;
+                voiceLastToken = p.count;
+                voiceLastMs = nowMs;
+            }
             // Deduplicate wake/service/status packets, but deliver every EVT_VOICE packet
             // so the user's handler can refresh continuous actions (e.g. keep walking).
             if (p.type < 0x20 && p.type != EVT_VOICE) {
@@ -442,6 +451,11 @@ namespace robotPuCap {
     let lastEventSeq: number[] = [];
     // Edge-trigger state for vision detection events (keyed by packet type).
     let evtDetected: boolean[] = [];
+    // Voice token dedup: same token re-streamed within VOICE_REFIRE_MS is one
+    // utterance; a different token always fires immediately.
+    const VOICE_REFIRE_MS = 1000;
+    let voiceLastToken = -1;
+    let voiceLastMs = -VOICE_REFIRE_MS;
 
     // Poll liveness watchdog: if reads stop succeeding after having worked,
     // the bus or this program is wedged — reset to recover instead of staying
