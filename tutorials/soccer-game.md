@@ -40,7 +40,7 @@ basic.forever(function () {
                 robotPuCap.objectX(robotPuCap.CapObject.Goal),
                 robotPuCap.objectY(robotPuCap.CapObject.Goal)
             ) * 57.3;
-            robotPuPro.walk(1, goalYaw * -0.02);
+            robotPuPro.walk(1, goalYaw * 0.02);
             if (Math.abs(goalYaw) < 15) {
                 robotPuPro.kick();
             }

@@ -369,9 +369,12 @@ namespace robotPuCap {
                     attentionCount[p.type] = (attentionCount[p.type] || 0) + add;
                 }
             }
+            // Idle packets are just "nothing pending" keep-alives — never
+            // surface them as events.
+            if (p.type == EVT_IDLE) return;
             // Deduplicate wake/service/status packets, but deliver every EVT_VOICE packet
             // so the user's handler can refresh continuous actions (e.g. keep walking).
-            if (p.type < 0x20 && p.type != EVT_IDLE && p.type != EVT_VOICE) {
+            if (p.type < 0x20 && p.type != EVT_VOICE) {
                 if (lastEventSeq[p.type] === p.seq) return;
                 lastEventSeq[p.type] = p.seq;
             }
@@ -380,6 +383,15 @@ namespace robotPuCap {
             if (p.type == EVT_QR_TEXT) {
                 qrTextChunk(buf, p);
                 return;
+            }
+            // Vision events are edge-triggered: the cap streams packets every
+            // poll (including empty ones after the object is lost), so only
+            // fire on the not-detected -> detected transition.
+            if (p.type >= 0x20) {
+                let det = p.valid && p.count > 0;
+                let was = evtDetected[p.type] || false;
+                evtDetected[p.type] = det;
+                if (!det || was) return;
             }
             // Queue the event instead of dispatching inline: user handlers must
             // never block the I2C poll fiber.
@@ -428,6 +440,8 @@ namespace robotPuCap {
     let voiceCommandHandler: (() => void) | undefined = undefined;
     let lastVoiceCommandToken: number = -1;
     let lastEventSeq: number[] = [];
+    // Edge-trigger state for vision detection events (keyed by packet type).
+    let evtDetected: boolean[] = [];
 
     // Poll liveness watchdog: if reads stop succeeding after having worked,
     // the bus or this program is wedged — reset to recover instead of staying
@@ -718,6 +732,7 @@ namespace robotPuCap {
     let qrTextBuf: Buffer = pins.createBuffer(0);
     let qrChunksSeen: boolean[] = [];
     let qrFilled = 0;
+    let qrComplete = false;
     let qrDecodedText = "";
 
     function qrTextChunk(buf: Buffer, p: CogniCapPacket): void {
@@ -728,6 +743,7 @@ namespace robotPuCap {
             qrTextBuf = pins.createBuffer(p.score);
             qrChunksSeen = [];
             qrFilled = 0;
+            qrComplete = false;
         }
         if (qrTextTotal <= 0) return;
         let offset = buf[6];
@@ -741,7 +757,10 @@ namespace robotPuCap {
         for (let i = 0; i < n; i++) {
             qrTextBuf.setNumber(NumberFormat.UInt8LE, offset + i, buf[7 + i]);
         }
-        if (qrFilled >= qrTextTotal) {
+        if (qrFilled >= qrTextTotal && !qrComplete) {
+            // Fire once per (text_id, total_len); the cap re-streams chunks
+            // cyclically so duplicates would re-trigger the event otherwise.
+            qrComplete = true;
             qrDecodedText = qrTextBuf.toString();
             enqueueEvent(EVT_QR_TEXT, qrTextId);
         }

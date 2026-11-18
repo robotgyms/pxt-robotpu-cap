@@ -152,7 +152,7 @@ basic.forever(function () {
 robotPuCap.startCogniCap();
 
 basic.forever(function () {
-    robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
+    robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2);
     basic.pause(5);
 });
 ```
@@ -166,7 +166,7 @@ basic.forever(function () {
     let ballSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Ball);
     let goalSeen = robotPuCap.objectDetected(robotPuCap.CapObject.Goal);
     if (ballSeen && goalSeen) {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2);
         if (robotPuCap.objectY(robotPuCap.CapObject.Ball) < 200) {
             let goalYaw = Math.atan2(
                 robotPuCap.objectX(robotPuCap.CapObject.Goal),
@@ -176,7 +176,7 @@ basic.forever(function () {
             if (Math.abs(goalYaw) < 15) robotPuPro.kick();
         }
     } else if (ballSeen) {
-        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, -0.2);
+        robotPuCap.followObject(robotPuCap.CapObject.Ball, 150, 0.4, 0.2);
     } else {
         robotPuCap.searchForObject(robotPuCap.CapObject.Ball);
         robotPuPro.walk(0, 1);
