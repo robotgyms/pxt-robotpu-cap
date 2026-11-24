@@ -295,7 +295,7 @@ robotPuCap.onVoiceCommand(function () {
 - `enable voice commands true` must run before `on voice command` events will fire.
 - There is no default voice-action engine. The robot only reacts when you add an `on voice command` or `on any voice command` handler.
 - Use `on voice command %action` when you want direct, per-command mapping.
-- Use `on any voice command` when you want one place to decide what to do, especially for experimenting with personality or Q-table logic.
+- Use `on any voice command` when you want one place to decide what to do, especially for experimenting with personality logic.
 - Continuous actions (`Walk`, `TurnLeft`, `Sit`, `Dance`, etc.) use `start(..., 0)` and run until the command stream stops.
 - One-shot actions (`Kick`, `Jump`, `Blink`, `Greet`, etc.) use `start(..., 1)` and run one cycle.
 - MultiNet is a compact keyword spotter. On memory-constrained setups a mock backend may be used, so some command words are generated from the token table instead of being truly recognised.
@@ -304,4 +304,4 @@ robotPuCap.onVoiceCommand(function () {
 
 - Add `robotpuVoice.say` confirmations so the robot tells you what it is about to do.
 - Combine voice commands with object tracking: say `go` and have the robot walk toward the last detected ball.
-- Use `on any voice command` with the Q-table so positive or negative sentiment feedback changes what the robot does next.
+- Use `on any voice command` with a decision function so positive or negative sentiment feedback changes what the robot does next — see [Heuristic Persona](huristic-persona.md).

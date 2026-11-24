@@ -48,7 +48,7 @@ Token `30` has its own `VoiceAction` member — `attention` — so a single `on 
    - **Brief dropout**: the smoothed angles decay and the head coasts in the last direction.
    - **No face for a while**: the head recentres and the eyes blink brighter the longer the face is gone — the robot keeps looking without wandering off.
 8. When `attentiveUntil` passes with no command, the robot dims its eyes and returns to `Rest`.
-9. Bonus: every `p u` packet also counts toward the built-in attention counters, so `attention state` bit 1 (voice) lights up and `attention reward` grows — see [Personality with Q-Learning](personality-qtable.md).
+9. Bonus: every `p u` packet also counts toward the built-in attention counters, so `attention state` bit 1 (voice) lights up and `attention reward` grows — see [Heuristic Persona](huristic-persona.md) for how to use them.
 
 ## Blocks used
 
@@ -214,5 +214,5 @@ robotPuCap.onI2CMessage(16, function () {
 
 - Make the robot come to you: swap the head tracking in `forever` for the follow loop from [Social Distance](social-distance.md) — `walk((faceDist - COMFORT_DIST) * speedGain, walkTurn)` — so attention makes it approach instead of just watch.
 - Greet instead of just standing and saying "yes?": run `robotPuPro.start(robotPuPro.Action.Greet, 1)` on token `30`, then start tracking once `is greet done` fires.
-- Feed the attention into learning: each `p u` and face packet already increments the attention counters, so call `attention action` in a slow loop and let the Q-table learn which of its actions earns the most `p u`s — see [Personality with Q-Learning](personality-qtable.md).
+- Feed the attention into behaviour: each `p u` and face packet already increments the attention counters, so a slow loop that reads `attention state` can pick the robot's next action — see [Heuristic Persona](huristic-persona.md).
 - Combine with the `moving` flag pattern from [Voice and Eye](voice-eye.md) so every locomotion command suspends attention cleanly.

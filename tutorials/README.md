@@ -21,12 +21,11 @@ The tutorials are arranged from low-level I2C commands up to high-level behaviou
 | 11 | [Object Following](object-following.md) | ★★★★ | Hand-code the `followObject` feedback loop and tune it. |
 | 12 | [Soccer Game](soccer-game.md) | ★★★★ | Find the ball, align to the goal, and kick. |
 | 13 | [Voice Command](voice-command.md) | ★★★ | Map `VoiceAction` tokens to `robotPuPro` actions using `on voice command` events. |
-| 14 | [Personality with Q-Learning](personality-qtable.md) | ★★★★★ | Train a 64-state Q-table during rest to give Robot PU a personality. |
-| 15 | [QTable Follow and Kick](qtable-follow-kick-ball.md) | ★★★★★ | Use a Q-table to tweak feedback gains and switch mode for following and kicking the ball. |
-| 16 | [Walkie-Talkie](walkie-talkie.md) | ★★★★ | Follow a face, walk to keep a comfortable distance, and talk with 30 random conversation starters. |
-| 17 | [Sit, Watch, and Chat](sit-watch-chat.md) | ★★★ | Sit in place, look around for a face, and start a random conversation when it finds one. |
-| 18 | [Attention](attention.md) | ★★★ | React to the `p u` / `pew` attention prefix (token 30) by standing up, tracking the speaker's face, and walking to face them at a comfortable distance. |
-| 19 | [Social Distance](social-distance.md) | ★★★★ | Follow a face while keeping a one-metre bubble — step closer when far, back away when too close, and complain about it. |
+| 14 | [Walkie-Talkie](walkie-talkie.md) | ★★★★ | Follow a face, walk to keep a comfortable distance, and talk with 30 random conversation starters. |
+| 15 | [Sit, Watch, and Chat](sit-watch-chat.md) | ★★★ | Sit in place, look around for a face, and start a random conversation when it finds one. |
+| 16 | [Attention](attention.md) | ★★★ | React to the `p u` / `pew` attention prefix (token 30) by standing up, tracking the speaker's face, and walking to face them at a comfortable distance. |
+| 17 | [Social Distance](social-distance.md) | ★★★★ | Follow a face while keeping a one-metre bubble — step closer when far, back away when too close, and complain about it. |
+| 18 | [Heuristic Persona](huristic-persona.md) | ★★★★ | Give the robot a personality with dictionaries that map voice tokens to actions, step counts and phrases. |
 
 
 ## Easy versions (start here)
@@ -47,8 +46,6 @@ Every tutorial rated ★★★ or higher has a stripped-down `simple-` variant: 
 | [Simple Attention](simple-attention.md) | [Attention](attention.md) |
 | [Simple Social Distance](simple-social-distance.md) | [Social Distance](social-distance.md) |
 | [Simple Walkie-Talkie](simple-walkie-talkie.md) | [Walkie-Talkie](walkie-talkie.md) |
-| [Simple Q-Table](simple-qtable.md) | [Personality with Q-Learning](personality-qtable.md) |
-| [Simple Q-Table Kick](simple-qtable-kick.md) | [QTable Follow and Kick](qtable-follow-kick-ball.md) |
 
 ## Requirements
 

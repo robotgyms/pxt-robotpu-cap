@@ -13,7 +13,7 @@ CogniCap is an ESP32-S3 AI camera + microphone add-on that snaps onto Robot PU's
 - **A robot that sees you** — face detection and head tracking keep PU's eyes on you ([face interaction](tutorials/face-interaction.md), [object tracking](tutorials/object-tracking.md))
 - **A soccer striker** — find the ball, dribble, and kick at the goal ([ball following](tutorials/ball-following.md), [soccer game](tutorials/soccer-game.md))
 - **A voice-controlled companion** — wake word plus 29 built-in voice commands ([voice command](tutorials/voice-command.md))
-- **A robot with a personality** — a built-in Q-table learns which actions earn your attention ([personality Q-table](tutorials/personality-qtable.md))
+- **A robot with a personality** — voice commands, attention counters and phrase tables give it character ([heuristic persona](tutorials/huristic-persona.md))
 - **And more** — walkie-talkie chat, object following, watch-sitting; see all [tutorials](tutorials/)
 
 ## A smarter PU — and a smarter anything
